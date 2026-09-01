@@ -29,6 +29,7 @@ export default function Home() {
   const [loading,setLoading]=useState(true);
   const [page,setPage]=useState("dashboard");
   const [students,setStudents]=useState<Student[]>([]);
+  const [teachers,setTeachers]=useState<Profile[]>([]);
   const [activities,setActivities]=useState<Activity[]>([]);
   const [posts,setPosts]=useState<Post[]>([]);
   const [settings,setSettings]=useState<SiteSettings>(DEFAULT_SETTINGS);
@@ -52,18 +53,20 @@ export default function Home() {
   }
   async function refresh(profile=me){
     if(!profile)return;
-    const [{data:ss},{data:aa},{data:pp},{data:cfg}]=await Promise.all([
+    const [{data:ss},{data:tt},{data:aa},{data:pp},{data:cfg}]=await Promise.all([
       supabase.from("students").select("id,grade,class_name,active,service,nt_read,discipleship,ot_read,evangelism,profiles!students_id_fkey(id,username,full_name,role)").order("created_at"),
+      supabase.from("profiles").select("id,username,full_name,role").eq("role","teacher").order("created_at"),
       supabase.from("activities").select("*").order("created_at",{ascending:false}),
       supabase.from("posts").select("*,profiles!posts_author_id_fkey(id,username,full_name,role),comments(*,profiles!comments_author_id_fkey(id,username,full_name,role)),post_media(*)").order("created_at",{ascending:false}),
       supabase.from("site_settings").select("dashboard_title,dashboard_subtitle,dashboard_notice").eq("id",1).maybeSingle()
     ]);
     setStudents((ss||[]) as unknown as Student[]);
+    setTeachers((tt||[]) as Profile[]);
     setActivities((aa||[]) as Activity[]);
     setPosts((pp||[]) as unknown as Post[]);
     if(cfg) setSettings(cfg as SiteSettings);
   }
-  async function logout(){await supabase.auth.signOut();setMe(null);setStudents([]);setActivities([]);setPosts([]);}
+  async function logout(){await supabase.auth.signOut();setMe(null);setStudents([]);setTeachers([]);setActivities([]);setPosts([]);}
 
   if(loading)return <main className="center"><div className="card">불러오는 중…</div></main>;
   if(!me)return <Auth onLogin={loadMe}/>;
@@ -71,7 +74,7 @@ export default function Home() {
   const nav = me.role==="admin"
     ? [["dashboard","🏠","대시보드"],["students","👥","학생 관리"],["score","✦","점수 입력"],["medals","🏅","메달 관리"],["board","💬","게시판"],["ranking","🏆","전체 비교"],["settings","⚙","설정"]]
     : me.role==="teacher"
-    ? [["dashboard","🏠","선생님 홈"],["score","✦","점수 입력"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
+    ? [["dashboard","🏠","선생님 홈"],["students","👥","학생 관리"],["score","✦","점수 입력"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
     : [["dashboard","🌱","나의 성장"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
 
   return <div className={`app ${collapsed?"navCollapsed":""}`}>
@@ -89,7 +92,7 @@ export default function Home() {
     </aside>
     <main className="main">
       {page==="dashboard" && <Dashboard me={me} students={students} activities={activities} settings={settings} onDone={()=>refresh()}/>}
-      {page==="students" && me.role==="admin" && <StudentsAdmin students={students} onDone={()=>refresh()}/>}
+      {page==="students" && (me.role==="admin"||me.role==="teacher") && <PeopleManagement me={me} students={students} teachers={teachers} onDone={()=>refresh()}/>}
       {page==="score" && (me.role==="admin"||me.role==="teacher") && <ScorePage students={students} activities={activities} me={me} onDone={()=>refresh()}/>}
       {page==="medals" && <Medals me={me} students={students} activities={activities}/>}
       {page==="ranking" && <Ranking students={students} activities={activities} me={me}/>}
@@ -183,8 +186,11 @@ function Header({title,sub}:{title:string;sub?:string}){return <div className="t
 function Stat({t,v}:{t:string;v:string}){return <div className="card"><div className="muted">{t}</div><div className="num">{v}</div></div>}
 function Row({left,right}:{left:string;right:string}){return <div className="row"><span>{left}</span><b>{right}</b></div>}
 
-function StudentsAdmin({students,onDone}:{students:Student[];onDone:()=>void}){
+function PeopleManagement({me,students,teachers,onDone}:{me:Profile;students:Student[];teachers:Profile[];onDone:()=>void}){
+  const isAdmin=me.role==="admin";
+  const [tab,setTab]=useState<"students"|"teachers">("students");
   const [showStudentForm,setShowStudentForm]=useState(false);
+  const [showTeacherForm,setShowTeacherForm]=useState(false);
   const [student,setStudent]=useState({fullName:"",grade:"",className:"",username:"",password:""});
   const [teacher,setTeacher]=useState({fullName:"",username:"",password:""});
 
@@ -192,20 +198,27 @@ function StudentsAdmin({students,onDone}:{students:Student[];onDone:()=>void}){
     const {data:{session}}=await supabase.auth.getSession();
     return session?{"content-type":"application/json","authorization":`Bearer ${session.access_token}`}:null;
   }
+
   async function addStudent(){
+    if(!isAdmin)return;
     const headers=await authHeaders(); if(!headers)return;
     const r=await fetch("/api/admin/student",{method:"POST",headers,body:JSON.stringify(student)});
     const j=await r.json(); if(!r.ok)return alert(j.error||"학생 등록 실패");
     alert("학생이 등록되었습니다.");
     setStudent({fullName:"",grade:"",className:"",username:"",password:""});setShowStudentForm(false);onDone();
   }
+
   async function addTeacher(){
+    if(!isAdmin)return;
     const headers=await authHeaders(); if(!headers)return;
     const r=await fetch("/api/admin/teacher",{method:"POST",headers,body:JSON.stringify(teacher)});
     const j=await r.json(); if(!r.ok)return alert(j.error||"생성 실패");
-    alert("선생님 계정이 생성되었습니다.");setTeacher({fullName:"",username:"",password:""});onDone();
+    alert("선생님 계정이 생성되었습니다.");
+    setTeacher({fullName:"",username:"",password:""});setShowTeacherForm(false);onDone();
   }
+
   async function editStudent(s:Student){
+    if(!isAdmin)return;
     const current=profileOf(s);
     const name=prompt("학생 이름",current?.full_name||""); if(name===null)return;
     const grade=prompt("학년",s.grade||""); if(grade===null)return;
@@ -213,24 +226,93 @@ function StudentsAdmin({students,onDone}:{students:Student[];onDone:()=>void}){
     const active=confirm("활동 중인 학생으로 설정할까요?\n확인=활동 / 취소=비활동");
     const {error:e1}=await supabase.from("profiles").update({full_name:name.trim()}).eq("id",s.id);
     const {error:e2}=await supabase.from("students").update({grade:grade.trim(),class_name:cls.trim(),active}).eq("id",s.id);
-    if(e1||e2)return alert(e1?.message||e2?.message);onDone();
+    if(e1||e2)return alert(e1?.message||e2?.message);
+    onDone();
+  }
+
+  async function editTeacher(t:Profile){
+    if(!isAdmin)return;
+    const fullName=prompt("선생님 이름",t.full_name||""); if(fullName===null)return;
+    const username=prompt("선생님 아이디",t.username||""); if(username===null)return;
+    const password=prompt("새 비밀번호 (변경하지 않으려면 비워두세요)",""); if(password===null)return;
+    const headers=await authHeaders(); if(!headers)return;
+    const r=await fetch("/api/admin/teacher",{
+      method:"PATCH",headers,
+      body:JSON.stringify({id:t.id,fullName:fullName.trim(),username:username.trim().toLowerCase(),password})
+    });
+    const j=await r.json(); if(!r.ok)return alert(j.error||"수정 실패");
+    alert("선생님 정보가 수정되었습니다.");onDone();
+  }
+
+  async function deleteTeacher(t:Profile){
+    if(!isAdmin)return;
+    if(!confirm(`${t.full_name} 선생님 계정을 삭제할까요?`))return;
+    const headers=await authHeaders(); if(!headers)return;
+    const r=await fetch(`/api/admin/teacher?id=${encodeURIComponent(t.id)}`,{method:"DELETE",headers});
+    const j=await r.json(); if(!r.ok)return alert(j.error||"삭제 실패");
+    alert("선생님 계정이 삭제되었습니다.");onDone();
   }
 
   return <>
-    <div className="top"><div className="title"><h1>👥 학생 관리</h1><p>학생을 직접 등록하고 정보를 수정할 수 있습니다.</p></div><button className="btn" onClick={()=>setShowStudentForm(v=>!v)}>+ 학생 등록</button></div>
-    {showStudentForm&&<div className="card editor">
-      <h3>새 학생 등록</h3>
-      <div className="formgrid">
-        <input className="input" placeholder="학생 이름" value={student.fullName} onChange={e=>setStudent({...student,fullName:e.target.value})}/>
-        <input className="input" placeholder="학년 (예: 중2)" value={student.grade} onChange={e=>setStudent({...student,grade:e.target.value})}/>
-        <input className="input" placeholder="반 (예: 1반)" value={student.className} onChange={e=>setStudent({...student,className:e.target.value})}/>
-        <input className="input" placeholder="로그인 아이디" value={student.username} onChange={e=>setStudent({...student,username:e.target.value.toLowerCase()})}/>
-        <input className="input" type="password" placeholder="초기 비밀번호 (6자 이상)" value={student.password} onChange={e=>setStudent({...student,password:e.target.value})}/>
+    <div className="top">
+      <div className="title"><h1>👥 학생 관리</h1><p>{isAdmin?"학생과 교사 계정을 관리합니다.":"학생과 교사 목록을 확인할 수 있습니다."}</p></div>
+    </div>
+
+    <div className="peopleTabs">
+      <button className={tab==="students"?"active":""} onClick={()=>setTab("students")}>학생 목록 <span>{students.length}</span></button>
+      <button className={tab==="teachers"?"active":""} onClick={()=>setTab("teachers")}>교사 목록 <span>{teachers.length}</span></button>
+    </div>
+
+    {tab==="students"&&<>
+      <div className="sectionToolbar">
+        <div><h3>학생 목록</h3><p className="muted">이름, 학년, 반, 아이디, 활동 상태를 확인합니다.</p></div>
+        {isAdmin&&<button className="btn" onClick={()=>setShowStudentForm(v=>!v)}>+ 학생 등록</button>}
       </div>
-      <div className="actions mtSmall"><button className="btn" onClick={addStudent}>학생 등록하기</button><button className="btn gray" onClick={()=>setShowStudentForm(false)}>취소</button></div>
-    </div>}
-    <div className="card"><div className="tablewrap"><table><thead><tr><th>이름</th><th>학년/반</th><th>아이디</th><th>상태</th><th></th></tr></thead><tbody>{students.map(s=><tr key={s.id}><td>{profileOf(s)?.full_name}</td><td>{s.grade} / {s.class_name}</td><td>{profileOf(s)?.username}</td><td>{s.active?"활동":"비활동"}</td><td><button className="btn gray compactBtn" onClick={()=>editStudent(s)}>정보 수정</button></td></tr>)}</tbody></table></div></div>
-    <div className="card mt"><h3>+ 선생님 계정</h3><div className="formgrid"><input className="input" placeholder="선생님 이름" value={teacher.fullName} onChange={e=>setTeacher({...teacher,fullName:e.target.value})}/><input className="input" placeholder="아이디" value={teacher.username} onChange={e=>setTeacher({...teacher,username:e.target.value.toLowerCase()})}/><input className="input" type="password" placeholder="비밀번호" value={teacher.password} onChange={e=>setTeacher({...teacher,password:e.target.value})}/></div><button className="btn mtSmall" onClick={addTeacher}>선생님 추가</button></div>
+      {isAdmin&&showStudentForm&&<div className="card editor">
+        <h3>새 학생 등록</h3>
+        <div className="formgrid">
+          <input className="input" placeholder="학생 이름" value={student.fullName} onChange={e=>setStudent({...student,fullName:e.target.value})}/>
+          <input className="input" placeholder="학년 (예: 중2)" value={student.grade} onChange={e=>setStudent({...student,grade:e.target.value})}/>
+          <input className="input" placeholder="반 (예: 1반)" value={student.className} onChange={e=>setStudent({...student,className:e.target.value})}/>
+          <input className="input" placeholder="로그인 아이디" value={student.username} onChange={e=>setStudent({...student,username:e.target.value.toLowerCase()})}/>
+          <input className="input" type="password" placeholder="초기 비밀번호 (6자 이상)" value={student.password} onChange={e=>setStudent({...student,password:e.target.value})}/>
+        </div>
+        <div className="actions mtSmall"><button className="btn" onClick={addStudent}>학생 등록하기</button><button className="btn gray" onClick={()=>setShowStudentForm(false)}>취소</button></div>
+      </div>}
+      <div className="card">
+        <div className="tablewrap"><table><thead><tr><th>이름</th><th>학년/반</th><th>아이디</th><th>상태</th>{isAdmin&&<th>관리</th>}</tr></thead>
+        <tbody>{students.map(s=><tr key={s.id}>
+          <td><b>{profileOf(s)?.full_name}</b></td>
+          <td>{s.grade||"-"} / {s.class_name||"-"}</td>
+          <td>{profileOf(s)?.username||"-"}</td>
+          <td><span className={`statusPill ${s.active?"on":"off"}`}>{s.active?"활동":"비활동"}</span></td>
+          {isAdmin&&<td><button className="btn gray compactBtn" onClick={()=>editStudent(s)}>정보 수정</button></td>}
+        </tr>)}</tbody></table></div>
+      </div>
+    </>}
+
+    {tab==="teachers"&&<>
+      <div className="sectionToolbar">
+        <div><h3>교사 목록</h3><p className="muted">{isAdmin?"교사 계정을 추가·수정·삭제할 수 있습니다.":"함께 섬기는 교사 목록입니다."}</p></div>
+        {isAdmin&&<button className="btn" onClick={()=>setShowTeacherForm(v=>!v)}>+ 교사 추가</button>}
+      </div>
+      {isAdmin&&showTeacherForm&&<div className="card editor">
+        <h3>새 교사 계정</h3>
+        <div className="formgrid">
+          <input className="input" placeholder="선생님 이름" value={teacher.fullName} onChange={e=>setTeacher({...teacher,fullName:e.target.value})}/>
+          <input className="input" placeholder="아이디" value={teacher.username} onChange={e=>setTeacher({...teacher,username:e.target.value.toLowerCase()})}/>
+          <input className="input" type="password" placeholder="비밀번호 (6자 이상)" value={teacher.password} onChange={e=>setTeacher({...teacher,password:e.target.value})}/>
+        </div>
+        <div className="actions mtSmall"><button className="btn" onClick={addTeacher}>교사 추가</button><button className="btn gray" onClick={()=>setShowTeacherForm(false)}>취소</button></div>
+      </div>}
+      <div className="card">
+        {teachers.length?<div className="teacherGrid">{teachers.map(t=><div className="teacherCard" key={t.id}>
+          <div className="teacherAvatar">👨‍🏫</div>
+          <div className="teacherInfo"><b>{t.full_name}</b><span>@{t.username}</span></div>
+          {isAdmin&&<div className="teacherActions"><button className="btn gray compactBtn" onClick={()=>editTeacher(t)}>수정</button><button className="btn red compactBtn" onClick={()=>deleteTeacher(t)}>삭제</button></div>}
+        </div>)}</div>:<div className="emptyState">등록된 교사가 없습니다.</div>}
+      </div>
+    </>}
   </>;
 }
 
