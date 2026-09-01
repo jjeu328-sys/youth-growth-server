@@ -101,6 +101,20 @@ create policy "media readable" on public.post_media for select to authenticated 
 create policy "media insert own" on public.post_media for insert to authenticated with check (uploader_id=auth.uid());
 create policy "media delete own or admin" on public.post_media for delete to authenticated using (uploader_id=auth.uid() or public.my_role()='admin');
 
+
+create table if not exists public.site_settings (
+  id int primary key default 1 check (id = 1),
+  dashboard_title text not null default '청소년부 신앙 성장',
+  dashboard_subtitle text not null default '점수보다 성장, 경쟁보다 격려',
+  dashboard_notice text not null default '',
+  updated_by uuid references public.profiles(id) on delete set null,
+  updated_at timestamptz not null default now()
+);
+insert into public.site_settings (id) values (1) on conflict (id) do nothing;
+alter table public.site_settings enable row level security;
+create policy "site settings readable" on public.site_settings for select to authenticated using (true);
+create policy "admin updates site settings" on public.site_settings for update to authenticated using (public.my_role()='admin') with check (public.my_role()='admin');
+
 -- Storage bucket: 게시판에서 바로 표시하기 위해 public. 운영 정책에 따라 private+signed URL로 변경 가능.
 insert into storage.buckets (id,name,public,file_size_limit,allowed_mime_types)
 values ('board-media','board-media',true,52428800,array['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/webm','video/quicktime'])
