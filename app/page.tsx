@@ -92,7 +92,7 @@ export default function Home() {
     </aside>
     <main className="main">
       {page==="dashboard" && <Dashboard me={me} students={students} activities={activities} settings={settings} onDone={()=>refresh()}/>}
-      {page==="students" && (me.role==="admin"||me.role==="teacher") && <PeopleManagement me={me} students={students} teachers={teachers} onDone={()=>refresh()}/>}
+      {page==="students" && (me.role==="admin"||me.role==="teacher") && <PeopleManagement me={me} students={students} teachers={teachers} activities={activities} onDone={()=>refresh()}/>}
       {page==="score" && (me.role==="admin"||me.role==="teacher") && <ScorePage students={students} activities={activities} me={me} onDone={()=>refresh()}/>}
       {page==="medals" && <Medals me={me} students={students} activities={activities}/>}
       {page==="ranking" && <Ranking students={students} activities={activities} me={me}/>}
@@ -135,7 +135,17 @@ function Field({label,name,type="text",defaultValue=""}:{label:string;name:strin
 
 function totalFor(id:string, acts:Activity[]){return acts.filter(a=>a.student_id===id).reduce((n,a)=>n+a.points,0)}
 function profileOf(s:Student){return Array.isArray(s.profiles)?s.profiles[0]:s.profiles}
-function medalFor(id:string, acts:Activity[]){const p=totalFor(id,acts);return p>=120?"🥇":p>=80?"🥈":p>=40?"🥉":"🌱"}
+function medalStatus(s:Student|undefined, acts:Activity[]){
+  if(!s) return {points:0,bronze:false,silver:false,gold:false,label:"🌱"};
+  const points=totalFor(s.id,acts);
+  const bronze=points>=40 && !!s.service;
+  const silver=bronze && points>=80 && !!s.discipleship && !!s.nt_read;
+  const gold=silver && !!s.evangelism && !!s.ot_read;
+  return {points,bronze,silver,gold,label:gold?"🥇":silver?"🥈":bronze?"🥉":"🌱"};
+}
+function medalFor(id:string, students:Student[], acts:Activity[]){
+  return medalStatus(students.find(s=>s.id===id),acts).label;
+}
 
 function Dashboard({me,students,activities,settings,onDone}:{me:Profile;students:Student[];activities:Activity[];settings:SiteSettings;onDone:()=>void}){
   const [editing,setEditing]=useState(false);
@@ -160,7 +170,7 @@ function Dashboard({me,students,activities,settings,onDone}:{me:Profile;students
       <Header title={`🌱 ${settings.dashboard_title}`} sub={`${me.full_name} · ${s?.grade||""} ${s?.class_name||""}`}/>
       {settings.dashboard_notice&&<div className="announcement">📢 {settings.dashboard_notice}</div>}
       <div className="card"><div className="muted">현재 총점</div><div className="bigscore">{total}점</div><div className="stars">{activities.filter(a=>a.student_id===me.id).map(a=>a.icon).join(" ")||"아직 점수가 없습니다."}</div></div>
-      <div className="grid2"><div className="card"><h3>현재 메달</h3><div className="medalBig">{medalFor(me.id,activities)}</div></div><div className="card"><h3>최근 활동</h3>{activities.filter(a=>a.student_id===me.id).slice(0,8).map(a=><Row key={a.id} left={a.reason} right={`${a.icon} +${a.points}`}/>)}</div></div>
+      <div className="grid2"><div className="card"><h3>현재 메달</h3><div className="medalBig">{medalFor(me.id,students,activities)}</div></div><div className="card"><h3>최근 활동</h3>{activities.filter(a=>a.student_id===me.id).slice(0,8).map(a=><Row key={a.id} left={a.reason} right={`${a.icon} +${a.points}`}/>)}</div></div>
     </>;
   }
 
@@ -186,13 +196,18 @@ function Header({title,sub}:{title:string;sub?:string}){return <div className="t
 function Stat({t,v}:{t:string;v:string}){return <div className="card"><div className="muted">{t}</div><div className="num">{v}</div></div>}
 function Row({left,right}:{left:string;right:string}){return <div className="row"><span>{left}</span><b>{right}</b></div>}
 
-function PeopleManagement({me,students,teachers,onDone}:{me:Profile;students:Student[];teachers:Profile[];onDone:()=>void}){
+function PeopleManagement({me,students,teachers,activities,onDone}:{me:Profile;students:Student[];teachers:Profile[];activities:Activity[];onDone:()=>void}){
   const isAdmin=me.role==="admin";
   const [tab,setTab]=useState<"students"|"teachers">("students");
   const [showStudentForm,setShowStudentForm]=useState(false);
   const [showTeacherForm,setShowTeacherForm]=useState(false);
   const [student,setStudent]=useState({fullName:"",grade:"",className:"",username:"",password:""});
   const [teacher,setTeacher]=useState({fullName:"",username:"",password:""});
+  const [editingStudent,setEditingStudent]=useState<Student|null>(null);
+  const [editForm,setEditForm]=useState({
+    fullName:"",grade:"",className:"",active:true,
+    service:false,nt_read:false,discipleship:false,ot_read:false,evangelism:false
+  });
 
   async function authHeaders(){
     const {data:{session}}=await supabase.auth.getSession();
@@ -217,16 +232,41 @@ function PeopleManagement({me,students,teachers,onDone}:{me:Profile;students:Stu
     setTeacher({fullName:"",username:"",password:""});setShowTeacherForm(false);onDone();
   }
 
-  async function editStudent(s:Student){
+  function editStudent(s:Student){
     if(!isAdmin)return;
     const current=profileOf(s);
-    const name=prompt("학생 이름",current?.full_name||""); if(name===null)return;
-    const grade=prompt("학년",s.grade||""); if(grade===null)return;
-    const cls=prompt("반",s.class_name||""); if(cls===null)return;
-    const active=confirm("활동 중인 학생으로 설정할까요?\n확인=활동 / 취소=비활동");
-    const {error:e1}=await supabase.from("profiles").update({full_name:name.trim()}).eq("id",s.id);
-    const {error:e2}=await supabase.from("students").update({grade:grade.trim(),class_name:cls.trim(),active}).eq("id",s.id);
+    setEditingStudent(s);
+    setEditForm({
+      fullName:current?.full_name||"",
+      grade:s.grade||"",
+      className:s.class_name||"",
+      active:s.active!==false,
+      service:!!s.service,
+      nt_read:!!s.nt_read,
+      discipleship:!!s.discipleship,
+      ot_read:!!s.ot_read,
+      evangelism:!!s.evangelism
+    });
+  }
+
+  async function saveStudentEdit(){
+    if(!isAdmin||!editingStudent)return;
+    if(!editForm.fullName.trim())return alert("학생 이름을 입력하세요.");
+    const {error:e1}=await supabase.from("profiles").update({
+      full_name:editForm.fullName.trim()
+    }).eq("id",editingStudent.id);
+    const {error:e2}=await supabase.from("students").update({
+      grade:editForm.grade.trim(),
+      class_name:editForm.className.trim(),
+      active:editForm.active,
+      service:editForm.service,
+      nt_read:editForm.nt_read,
+      discipleship:editForm.discipleship,
+      ot_read:editForm.ot_read,
+      evangelism:editForm.evangelism
+    }).eq("id",editingStudent.id);
     if(e1||e2)return alert(e1?.message||e2?.message);
+    setEditingStudent(null);
     onDone();
   }
 
@@ -262,6 +302,54 @@ function PeopleManagement({me,students,teachers,onDone}:{me:Profile;students:Stu
       <button className={tab==="students"?"active":""} onClick={()=>setTab("students")}>학생 목록 <span>{students.length}</span></button>
       <button className={tab==="teachers"?"active":""} onClick={()=>setTab("teachers")}>교사 목록 <span>{teachers.length}</span></button>
     </div>
+
+    {isAdmin&&editingStudent&&<div className="card editor medalEditor">
+      <div className="sectionToolbar">
+        <div>
+          <h3>학생 정보 수정 · 메달 조건</h3>
+          <p className="muted">기본 정보와 메달 미션을 함께 수정합니다.</p>
+        </div>
+        <button className="btn gray" onClick={()=>setEditingStudent(null)}>닫기</button>
+      </div>
+
+      <div className="formgrid">
+        <label className="field"><span>이름</span><input className="input" value={editForm.fullName} onChange={e=>setEditForm({...editForm,fullName:e.target.value})}/></label>
+        <label className="field"><span>학년</span><input className="input" value={editForm.grade} onChange={e=>setEditForm({...editForm,grade:e.target.value})}/></label>
+        <label className="field"><span>반</span><input className="input" value={editForm.className} onChange={e=>setEditForm({...editForm,className:e.target.value})}/></label>
+        <label className="checkRow"><input type="checkbox" checked={editForm.active} onChange={e=>setEditForm({...editForm,active:e.target.checked})}/><span>활동 중</span></label>
+      </div>
+
+      <div className="medalRuleGrid">
+        <div className="medalRuleCard">
+          <div className="medalRuleTitle">🥉 동메달</div>
+          <div className="muted">40점 이상 + 봉사</div>
+          <label className="checkRow"><input type="checkbox" checked={editForm.service} onChange={e=>setEditForm({...editForm,service:e.target.checked})}/><span>봉사 완료</span></label>
+        </div>
+
+        <div className="medalRuleCard">
+          <div className="medalRuleTitle">🥈 은메달</div>
+          <div className="muted">동메달 + 80점 이상 + 제자훈련 + 신약통독</div>
+          <label className="checkRow"><input type="checkbox" checked={editForm.discipleship} onChange={e=>setEditForm({...editForm,discipleship:e.target.checked})}/><span>제자훈련 완료</span></label>
+          <label className="checkRow"><input type="checkbox" checked={editForm.nt_read} onChange={e=>setEditForm({...editForm,nt_read:e.target.checked})}/><span>신약통독 완료</span></label>
+        </div>
+
+        <div className="medalRuleCard">
+          <div className="medalRuleTitle">🥇 금메달</div>
+          <div className="muted">은메달 + 전도 + 구약통독</div>
+          <label className="checkRow"><input type="checkbox" checked={editForm.evangelism} onChange={e=>setEditForm({...editForm,evangelism:e.target.checked})}/><span>전도 완료</span></label>
+          <label className="checkRow"><input type="checkbox" checked={editForm.ot_read} onChange={e=>setEditForm({...editForm,ot_read:e.target.checked})}/><span>구약통독 완료</span></label>
+        </div>
+      </div>
+
+      <div className="medalPreview">
+        현재 점수: <b>{totalFor(editingStudent.id,activities)}점</b>
+      </div>
+
+      <div className="actions mtSmall">
+        <button className="btn" onClick={saveStudentEdit}>저장</button>
+        <button className="btn gray" onClick={()=>setEditingStudent(null)}>취소</button>
+      </div>
+    </div>}
 
     {tab==="students"&&<>
       <div className="sectionToolbar">
@@ -328,11 +416,36 @@ function ScorePage({students,activities,me,onDone}:{students:Student[];activitie
 
 function Medals({me,students,activities}:{me:Profile;students:Student[];activities:Activity[]}){
   const list=me.role==="student"?students.filter(s=>s.id===me.id):students.filter(s=>s.active);
-  return <><Header title={me.role==="student"?"🏅 나의 메달":"🏅 메달 현황"} sub="동 40점 · 은 80점 · 금 120점"/><div className="card">{list.map(s=><Row key={s.id} left={`${profileOf(s)?.full_name||""} · ${totalFor(s.id,activities)}점`} right={medalFor(s.id,activities)}/>)}</div></>;
+  return <>
+    <Header title={me.role==="student"?"🏅 나의 메달":"🏅 메달 현황"} sub="점수와 미션 조건을 모두 충족해야 메달을 획득합니다."/>
+    <div className="medalSummary">
+      <div className="card"><b>🥉 동메달</b><p>40점 + 봉사</p></div>
+      <div className="card"><b>🥈 은메달</b><p>동메달 + 80점 + 제자훈련 + 신약통독</p></div>
+      <div className="card"><b>🥇 금메달</b><p>은메달 + 전도 + 구약통독</p></div>
+    </div>
+    <div className="card mt">
+      {list.map(s=>{
+        const m=medalStatus(s,activities);
+        return <div className="medalStudentRow" key={s.id}>
+          <div className="medalStudentHead">
+            <div><b>{profileOf(s)?.full_name||""}</b><span>{m.points}점</span></div>
+            <div className="medalCurrent">{m.label}</div>
+          </div>
+          <div className="missionLine">
+            <span className={s.service?"done":""}>봉사 {s.service?"✓":"○"}</span>
+            <span className={s.discipleship?"done":""}>제자훈련 {s.discipleship?"✓":"○"}</span>
+            <span className={s.nt_read?"done":""}>신약통독 {s.nt_read?"✓":"○"}</span>
+            <span className={s.evangelism?"done":""}>전도 {s.evangelism?"✓":"○"}</span>
+            <span className={s.ot_read?"done":""}>구약통독 {s.ot_read?"✓":"○"}</span>
+          </div>
+        </div>
+      })}
+    </div>
+  </>;
 }
 function Ranking({students,activities,me}:{students:Student[];activities:Activity[];me:Profile}){
   const list=students.filter(s=>s.active).slice().sort((a,b)=>totalFor(b.id,activities)-totalFor(a.id,activities));
-  return <><Header title="🏆 전체 비교" sub="현재 누적 점수 기준"/><div className="card">{list.map((s,i)=><Row key={s.id} left={`${i+1}위 ${profileOf(s)?.full_name||""}${s.id===me.id?" (나)":""}`} right={`${medalFor(s.id,activities)} ${totalFor(s.id,activities)}점`}/>)}</div></>;
+  return <><Header title="🏆 전체 비교" sub="현재 누적 점수 기준"/><div className="card">{list.map((s,i)=><Row key={s.id} left={`${i+1}위 ${profileOf(s)?.full_name||""}${s.id===me.id?" (나)":""}`} right={`${medalFor(s.id,students,activities)} ${totalFor(s.id,activities)}점`}/>)}</div></>;
 }
 
 function Board({me,posts,selected,setSelected,writing,setWriting,onDone}:{me:Profile;posts:Post[];selected:Post|null;setSelected:(p:Post|null)=>void;writing:boolean;setWriting:(b:boolean)=>void;onDone:()=>void}){
