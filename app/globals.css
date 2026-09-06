@@ -48,3 +48,10 @@
 @media(max-width:760px){.peopleTabs{width:100%}.peopleTabs button{flex:1;padding:10px 8px}.sectionToolbar{align-items:flex-start;flex-wrap:wrap}.teacherGrid{grid-template-columns:1fr}.teacherCard{align-items:flex-start}.teacherActions{flex-direction:column}}
 
 .medalEditor{margin-bottom:18px}.medalRuleGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}.medalRuleCard{border:1px solid #e7e8ee;border-radius:14px;padding:14px;background:#fafbff}.medalRuleTitle{font-size:1.05rem;font-weight:900;margin-bottom:5px}.checkRow{display:flex;align-items:center;gap:9px;padding:8px 0;font-weight:700}.checkRow input{width:18px;height:18px;accent-color:#4f46e5}.medalPreview{background:#eef0ff;border-radius:12px;padding:12px;margin-top:10px}.medalSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.medalSummary p{margin:7px 0 0;color:#666;font-size:.88rem;line-height:1.45}.medalStudentRow{padding:14px 0;border-bottom:1px solid #eee}.medalStudentRow:last-child{border-bottom:0}.medalStudentHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.medalStudentHead>div:first-child{display:flex;align-items:center;gap:10px}.medalStudentHead span{font-size:.82rem;color:#777}.medalCurrent{font-size:1.6rem}.missionLine{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}.missionLine span{font-size:.78rem;background:#f3f4f6;color:#6b7280;padding:5px 8px;border-radius:999px}.missionLine span.done{background:#ecfdf5;color:#047857;font-weight:800}@media(max-width:900px){.medalRuleGrid,.medalSummary{grid-template-columns:1fr}}
+
+.meRow{background:#f7f7ff;border-radius:12px;padding-left:12px;padding-right:12px}
+.medalRankName{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.medalRank{font-size:.76rem;font-weight:900;color:#4f46e5;background:#eef0ff;padding:4px 8px;border-radius:999px}
+.medalSteps{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.medalSteps span{font-size:.76rem;background:#f3f4f6;color:#6b7280;padding:5px 8px;border-radius:999px}
+.medalSteps span.done{background:#fff7ed;color:#b45309;font-weight:900}

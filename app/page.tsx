@@ -415,28 +415,56 @@ function ScorePage({students,activities,me,onDone}:{students:Student[];activitie
 }
 
 function Medals({me,students,activities}:{me:Profile;students:Student[];activities:Activity[]}){
-  const list=me.role==="student"?students.filter(s=>s.id===me.id):students.filter(s=>s.active);
+  const list=students.filter(s=>s.active).slice().sort((a,b)=>{
+    const ma=medalStatus(a,activities), mb=medalStatus(b,activities);
+    if(mb.gold!==ma.gold)return Number(mb.gold)-Number(ma.gold);
+    if(mb.silver!==ma.silver)return Number(mb.silver)-Number(ma.silver);
+    if(mb.bronze!==ma.bronze)return Number(mb.bronze)-Number(ma.bronze);
+    return mb.points-ma.points;
+  });
+
   return <>
-    <Header title={me.role==="student"?"🏅 나의 메달":"🏅 메달 현황"} sub="점수와 미션 조건을 모두 충족해야 메달을 획득합니다."/>
+    <Header
+      title={me.role==="student"?"🏅 우리 청소년부 메달":"🏅 메달 현황"}
+      sub={me.role==="student"?"친구들과 메달·점수·미션 진행을 함께 비교할 수 있습니다.":"점수와 미션 조건을 모두 충족해야 메달을 획득합니다."}
+    />
+
     <div className="medalSummary">
       <div className="card"><b>🥉 동메달</b><p>40점 + 봉사</p></div>
       <div className="card"><b>🥈 은메달</b><p>동메달 + 80점 + 제자훈련 + 신약통독</p></div>
       <div className="card"><b>🥇 금메달</b><p>은메달 + 전도 + 구약통독</p></div>
     </div>
+
+    {me.role==="student"&&<div className="notice mt">
+      다른 학생의 상세 활동 사유는 공개하지 않고, 비교에 필요한 메달·점수·미션 상태만 보여줍니다.
+    </div>}
+
     <div className="card mt">
-      {list.map(s=>{
+      {list.map((s,index)=>{
         const m=medalStatus(s,activities);
-        return <div className="medalStudentRow" key={s.id}>
+        const isMe=s.id===me.id;
+        return <div className={`medalStudentRow ${isMe?"meRow":""}`} key={s.id}>
           <div className="medalStudentHead">
-            <div><b>{profileOf(s)?.full_name||""}</b><span>{m.points}점</span></div>
+            <div className="medalRankName">
+              <span className="medalRank">{index+1}위</span>
+              <b>{profileOf(s)?.full_name||""}{isMe?" (나)":""}</b>
+              <span>{m.points}점</span>
+            </div>
             <div className="medalCurrent">{m.label}</div>
           </div>
+
           <div className="missionLine">
             <span className={s.service?"done":""}>봉사 {s.service?"✓":"○"}</span>
             <span className={s.discipleship?"done":""}>제자훈련 {s.discipleship?"✓":"○"}</span>
             <span className={s.nt_read?"done":""}>신약통독 {s.nt_read?"✓":"○"}</span>
             <span className={s.evangelism?"done":""}>전도 {s.evangelism?"✓":"○"}</span>
             <span className={s.ot_read?"done":""}>구약통독 {s.ot_read?"✓":"○"}</span>
+          </div>
+
+          <div className="medalSteps">
+            <span className={m.bronze?"done":""}>🥉 {m.bronze?"획득":"진행"}</span>
+            <span className={m.silver?"done":""}>🥈 {m.silver?"획득":"진행"}</span>
+            <span className={m.gold?"done":""}>🥇 {m.gold?"획득":"진행"}</span>
           </div>
         </div>
       })}
