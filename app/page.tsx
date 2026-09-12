@@ -135,7 +135,7 @@ function Field({label,name,type="text",defaultValue=""}:{label:string;name:strin
 }
 
 function totalFor(id:string, acts:Activity[]){return acts.filter(a=>a.student_id===id).reduce((n,a)=>n+a.points,0)}
-function profileOf(s:Student){return Array.isArray(s.profiles)?s.profiles[0]:s.profiles}
+function profileOf(s:Student|undefined){if(!s)return undefined;return Array.isArray(s.profiles)?s.profiles[0]:s.profiles}
 function medalStatus(s:Student|undefined, acts:Activity[]){
   if(!s) return {points:0,bronze:false,silver:false,gold:false,label:"🌱"};
   const points=totalFor(s.id,acts);
