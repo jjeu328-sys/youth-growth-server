@@ -81,3 +81,16 @@ GitHub에서 Commit changes 하면 Vercel이 자동으로 새 배포합니다.
 - TypeScript strict 빌드 오류 방지
 - 기능은 v6과 동일
 - 추가 SQL 필요 없음
+
+
+## v6.2 Vercel 배포 설정 수정
+- 루트에 `vercel.json` 추가
+- Vercel Framework를 `nextjs`로 명시
+- Output Directory를 `.next`로 명시하여 프로젝트 설정의 잘못된 `public` 값을 덮어씀
+- v6.1의 점수 내역 기능 및 기존 기능 유지
+- Supabase 추가 SQL 필요 없음
+- Vercel Production 환경변수 4개는 계속 필요:
+  - NEXT_PUBLIC_SUPABASE_URL
+  - NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  - SUPABASE_SERVICE_ROLE_KEY
+  - ADMIN_SETUP_SECRET
