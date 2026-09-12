@@ -55,3 +55,9 @@
 .medalSteps{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
 .medalSteps span{font-size:.76rem;background:#f3f4f6;color:#6b7280;padding:5px 8px;border-radius:999px}
 .medalSteps span.done{background:#fff7ed;color:#b45309;font-weight:900}
+
+.historySummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.historyStat{display:flex;flex-direction:column;gap:5px}.historyStat span{font-size:.8rem;color:#777}.historyStat b{font-size:1.35rem}
+.historyFilters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}.historyFilters .field{margin:0}
+.historyTable td{vertical-align:middle}.historyDate{white-space:nowrap;color:#666;font-size:.82rem}.historyPoint{white-space:nowrap;font-weight:900}.historyCategory{display:inline-block;white-space:nowrap;background:#f3f4f6;padding:4px 8px;border-radius:999px;font-size:.76rem}.historyReason{min-width:190px;line-height:1.45}
+@media(max-width:760px){.historySummary{grid-template-columns:1fr 1fr}.historyFilters{grid-template-columns:1fr}.historySummary .historyStat:last-child:nth-child(3){grid-column:1/-1}.historyTable{min-width:720px}}

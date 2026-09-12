@@ -10,7 +10,7 @@ type Student = {
   service?:boolean; nt_read?:boolean; discipleship?:boolean; ot_read?:boolean; evangelism?:boolean;
   profiles?:Profile | Profile[];
 };
-type Activity = { id:number; student_id:string; points:number; icon:string; reason:string; category:string; created_at:string };
+type Activity = { id:number; student_id:string; giver_id:string; points:number; icon:string; reason:string; category:string; created_at:string };
 type Post = { id:number; author_id:string; title:string; body:string; created_at:string; profiles?:Profile; comments?:CommentRow[]; post_media?:MediaRow[] };
 type CommentRow = { id:number; post_id:number; author_id:string; body:string; created_at:string; profiles?:Profile };
 type MediaRow = { id:number; post_id:number; path:string; media_type:string };
@@ -72,10 +72,10 @@ export default function Home() {
   if(!me)return <Auth onLogin={loadMe}/>;
 
   const nav = me.role==="admin"
-    ? [["dashboard","🏠","대시보드"],["students","👥","학생 관리"],["score","✦","점수 입력"],["medals","🏅","메달 관리"],["board","💬","게시판"],["ranking","🏆","전체 비교"],["settings","⚙","설정"]]
+    ? [["dashboard","🏠","대시보드"],["students","👥","학생 관리"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 관리"],["board","💬","게시판"],["ranking","🏆","전체 비교"],["settings","⚙","설정"]]
     : me.role==="teacher"
-    ? [["dashboard","🏠","선생님 홈"],["students","👥","학생 관리"],["score","✦","점수 입력"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
-    : [["dashboard","🌱","나의 성장"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
+    ? [["dashboard","🏠","선생님 홈"],["students","👥","학생 관리"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
+    : [["dashboard","🌱","나의 성장"],["history","📋","나의 점수"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
 
   return <div className={`app ${collapsed?"navCollapsed":""}`}>
     <aside className="side">
@@ -94,6 +94,7 @@ export default function Home() {
       {page==="dashboard" && <Dashboard me={me} students={students} activities={activities} settings={settings} onDone={()=>refresh()}/>}
       {page==="students" && (me.role==="admin"||me.role==="teacher") && <PeopleManagement me={me} students={students} teachers={teachers} activities={activities} onDone={()=>refresh()}/>}
       {page==="score" && (me.role==="admin"||me.role==="teacher") && <ScorePage students={students} activities={activities} me={me} onDone={()=>refresh()}/>}
+      {page==="history" && <ScoreHistory me={me} students={students} teachers={teachers} activities={activities}/>}
       {page==="medals" && <Medals me={me} students={students} activities={activities}/>}
       {page==="ranking" && <Ranking students={students} activities={activities} me={me}/>}
       {page==="board" && <Board me={me} posts={posts} selected={selectedPost} setSelected={setSelectedPost} writing={writing} setWriting={setWriting} onDone={()=>refresh()}/>}
@@ -412,6 +413,105 @@ function ScorePage({students,activities,me,onDone}:{students:Student[];activitie
     if(error)return alert(error.message);setReason("");onDone();
   }
   return <><Header title="✦ 점수 입력" sub="관리자와 선생님이 1·2·4·8점을 자유롭게 줄 수 있습니다."/><div className="card"><div className="formgrid"><label className="field"><span>학생</span><select className="input" value={sid} onChange={e=>setSid(e.target.value)}>{active.map(s=><option key={s.id} value={s.id}>{profileOf(s)?.full_name} ({totalFor(s.id,activities)}점)</option>)}</select></label><label className="field"><span>점수 사유</span><input className="input" value={reason} onChange={e=>setReason(e.target.value)} placeholder="예: 친구를 도와줌"/></label></div><label className="field"><span>분류</span><input className="input" value={category} onChange={e=>setCategory(e.target.value)}/></label><div className="scoregrid">{SCORE_OPTIONS.map(x=><button className="score" key={x.p} onClick={()=>give(x.p,x.i)}>{x.i} <small>{x.p}점</small></button>)}</div></div></>;
+}
+
+
+function ScoreHistory({me,students,teachers,activities}:{me:Profile;students:Student[];teachers:Profile[];activities:Activity[]}){
+  const isStudent=me.role==="student";
+  const [studentFilter,setStudentFilter]=useState("all");
+  const [categoryFilter,setCategoryFilter]=useState("all");
+  const [query,setQuery]=useState("");
+
+  const visibleBase=isStudent?activities.filter(a=>a.student_id===me.id):activities;
+  const categories=Array.from(new Set(visibleBase.map(a=>a.category).filter(Boolean))).sort();
+
+  const visible=visibleBase.filter(a=>{
+    if(!isStudent && studentFilter!=="all" && a.student_id!==studentFilter)return false;
+    if(categoryFilter!=="all" && a.category!==categoryFilter)return false;
+    const q=query.trim().toLowerCase();
+    if(!q)return true;
+    const studentName=profileOf(students.find(s=>s.id===a.student_id))?.full_name||"";
+    return `${studentName} ${a.reason} ${a.category}`.toLowerCase().includes(q);
+  });
+
+  function studentName(id:string){
+    return profileOf(students.find(s=>s.id===id))?.full_name||"알 수 없음";
+  }
+  function giverName(id:string){
+    if(id===me.id)return me.full_name;
+    const teacher=teachers.find(t=>t.id===id);
+    return teacher?.full_name||"관리자";
+  }
+  function dateText(value:string){
+    const d=new Date(value);
+    if(Number.isNaN(d.getTime()))return value;
+    return new Intl.DateTimeFormat("ko-KR",{
+      year:"numeric",month:"2-digit",day:"2-digit",
+      hour:"2-digit",minute:"2-digit"
+    }).format(d);
+  }
+
+  const shownPoints=visible.reduce((sum,a)=>sum+a.points,0);
+
+  return <>
+    <Header
+      title={isStudent?"📋 나의 점수 내역":"📋 점수 내역"}
+      sub={isStudent?"내가 받은 점수와 점수를 받은 이유를 확인할 수 있습니다.":"청소년부 학생들에게 지급한 점수 기록을 날짜순으로 확인할 수 있습니다."}
+    />
+
+    <div className="historySummary">
+      <div className="card historyStat"><span>표시된 기록</span><b>{visible.length}건</b></div>
+      <div className="card historyStat"><span>표시된 점수 합계</span><b>{shownPoints}점</b></div>
+      {isStudent&&<div className="card historyStat"><span>현재 총점</span><b>{totalFor(me.id,activities)}점</b></div>}
+    </div>
+
+    <div className="card historyFilters">
+      {!isStudent&&<label className="field">
+        <span>학생</span>
+        <select className="input" value={studentFilter} onChange={e=>setStudentFilter(e.target.value)}>
+          <option value="all">전체 학생</option>
+          {students.map(s=><option value={s.id} key={s.id}>{profileOf(s)?.full_name||"이름 없음"}</option>)}
+        </select>
+      </label>}
+      <label className="field">
+        <span>분류</span>
+        <select className="input" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}>
+          <option value="all">전체 분류</option>
+          {categories.map(c=><option value={c} key={c}>{c}</option>)}
+        </select>
+      </label>
+      <label className="field historySearch">
+        <span>검색</span>
+        <input className="input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="이름·사유·분류 검색"/>
+      </label>
+    </div>
+
+    <div className="card">
+      {visible.length===0?<div className="emptyState">조건에 맞는 점수 기록이 없습니다.</div>:
+      <div className="tablewrap">
+        <table className="historyTable">
+          <thead><tr>
+            <th>날짜</th>
+            {!isStudent&&<th>학생</th>}
+            <th>점수</th>
+            <th>분류</th>
+            <th>사유</th>
+            {!isStudent&&<th>지급자</th>}
+          </tr></thead>
+          <tbody>
+            {visible.map(a=><tr key={a.id}>
+              <td className="historyDate">{dateText(a.created_at)}</td>
+              {!isStudent&&<td><b>{studentName(a.student_id)}</b></td>}
+              <td><span className="historyPoint">{a.icon} {a.points}점</span></td>
+              <td><span className="historyCategory">{a.category}</span></td>
+              <td className="historyReason">{a.reason}</td>
+              {!isStudent&&<td>{giverName(a.giver_id)}</td>}
+            </tr>)}
+          </tbody>
+        </table>
+      </div>}
+    </div>
+  </>;
 }
 
 function Medals({me,students,activities}:{me:Profile;students:Student[];activities:Activity[]}){
