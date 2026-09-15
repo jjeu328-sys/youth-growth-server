@@ -104,8 +104,8 @@ create policy "media delete own or admin" on public.post_media for delete to aut
 
 create table if not exists public.site_settings (
   id int primary key default 1 check (id = 1),
-  dashboard_title text not null default '청소년부 신앙 성장',
-  dashboard_subtitle text not null default '점수보다 성장, 경쟁보다 격려',
+  dashboard_title text not null default '비전제일교회 청소년부',
+  dashboard_subtitle text not null default '주님 안에서 함께 웃고, 믿음으로 자라요',
   dashboard_notice text not null default '',
   updated_by uuid references public.profiles(id) on delete set null,
   updated_at timestamptz not null default now()

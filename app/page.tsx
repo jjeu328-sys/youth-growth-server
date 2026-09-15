@@ -19,8 +19,8 @@ type SiteSettings = { dashboard_title:string; dashboard_subtitle:string; dashboa
 const supabase = createClient();
 const SCORE_OPTIONS = [{p:1,i:"○"},{p:2,i:"●"},{p:4,i:"☆"},{p:8,i:"★"}];
 const DEFAULT_SETTINGS:SiteSettings = {
-  dashboard_title:"청소년부 신앙 성장",
-  dashboard_subtitle:"점수보다 성장, 경쟁보다 격려",
+  dashboard_title:"비전제일교회 청소년부",
+  dashboard_subtitle:"주님 안에서 함께 웃고, 믿음으로 자라요",
   dashboard_notice:""
 };
 
@@ -77,10 +77,13 @@ export default function Home() {
     ? [["dashboard","🏠","선생님 홈"],["students","👥","학생 관리"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
     : [["dashboard","🌱","나의 성장"],["history","📋","나의 점수"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
 
-  return <div className={`app ${collapsed?"navCollapsed":""}`}>
+  return <div className={`app role-${me.role} ${collapsed?"navCollapsed":""}`}>
     <aside className="side">
       <div className="sideTop">
-        <div className="brand"><span className="brandIcon">✦</span><span className="brandText">청소년부 성장관리</span></div>
+        <div className="brand">
+          <span className="brandIcon">✦</span>
+          <span className="brandText"><strong>비전제일교회</strong><small>JOYFUL YOUTH</small></span>
+        </div>
         <button className="collapseBtn" aria-label="메뉴 접기/펼치기" onClick={()=>setCollapsed(v=>!v)}>{collapsed?"›":"‹"}</button>
       </div>
       <div className="nav">
@@ -88,6 +91,10 @@ export default function Home() {
           <span className="navIcon">{icon}</span><span className="navLabel">{label}</span>
         </button>)}
         <button title="로그아웃" onClick={logout}><span className="navIcon">↩</span><span className="navLabel">로그아웃</span></button>
+      </div>
+      <div className="sideFoot">
+        <span className="sideAvatar">{me.full_name.slice(0,1)}</span>
+        <span className="sideIdentity"><b>{me.full_name}</b><small>{me.role==="admin"?"관리자":me.role==="teacher"?"선생님":"학생"}</small></span>
       </div>
     </aside>
     <main className="main">
@@ -123,11 +130,20 @@ function Auth({onLogin}:{onLogin:(uid:string)=>Promise<void>}){
     const j=await r.json(); if(!r.ok)return setMsg(j.error||"회원가입 실패");
     setMsg("회원가입이 완료되었습니다. 로그인해 주세요.");setMode("login");
   }
-  return <main className="auth"><div className="authbox"><div className="logo">🌱</div><h1>청소년부 신앙 성장</h1><p className="sub">점수보다 성장, 경쟁보다 격려</p>
+  return <main className="auth">
+    <section className="authIntro" aria-label="청소년부 소개">
+      <span className="introMark">JOY</span>
+      <p className="introEyebrow">비전제일교회 청소년부</p>
+      <h1>주님 안에서<br/><em>행복하게,</em><br/>함께 자라요</h1>
+      <p>예배와 말씀, 사랑의 섬김을 통해<br/>서로를 응원하는 밝은 공동체입니다.</p>
+      <div className="introTags"><span>예배</span><span>말씀</span><span>사랑</span></div>
+    </section>
+    <div className="authbox"><div className="logo">✦</div><p className="loginEyebrow">WELCOME BACK</p><h2>반가워요!</h2><p className="sub">오늘도 기쁨으로 함께 성장해요.</p>
     <div className="tabs"><button type="button" className={mode==="login"?"active":""} onClick={()=>setMode("login")}>로그인</button><button type="button" className={mode==="signup"?"active":""} onClick={()=>setMode("signup")}>회원가입</button></div>
     {mode==="login"?<form onSubmit={login}><Field label="아이디" name="username"/><Field label="비밀번호" name="password" type="password"/><button className="btn full">로그인</button></form>
     :<form onSubmit={signup}><Field label="이름" name="fullName"/><div className="formgrid"><Field label="학년" name="grade"/><Field label="반" name="className"/></div><Field label="아이디" name="username"/><Field label="비밀번호" name="password" type="password"/><Field label="비밀번호 확인" name="password2" type="password"/><button className="btn full">학생 회원가입</button></form>}
     {msg&&<div className="notice">{msg}</div>}
+    <p className="authHelp">로그인에 어려움이 있다면 담당 선생님께 알려주세요.</p>
   </div></main>
 }
 function Field({label,name,type="text",defaultValue=""}:{label:string;name:string;type?:string;defaultValue?:string}) {
@@ -178,7 +194,7 @@ function Dashboard({me,students,activities,settings,onDone}:{me:Profile;students
   const active=students.filter(s=>s.active), avg=active.length?Math.round(active.reduce((n,s)=>n+totalFor(s.id,activities),0)/active.length):0;
   return <>
     <div className="top">
-      <div className="title"><h1>{me.role==="admin"?settings.dashboard_title:"선생님 홈"}</h1><p>{settings.dashboard_subtitle||"학생들의 성장을 확인하고 기록하세요."}</p></div>
+      <div className="title"><p className="pageEyebrow">GROWING TOGETHER</p><h1>{me.role==="admin"?settings.dashboard_title:"선생님 홈"}</h1><p>{settings.dashboard_subtitle||"주님 안에서 자라나는 학생들의 오늘을 함께 기록해요."}</p></div>
       {me.role==="admin"&&<button className="btn gray" onClick={()=>setEditing(v=>!v)}>✏️ 대시보드 편집</button>}
     </div>
     {settings.dashboard_notice&&<div className="announcement">📢 {settings.dashboard_notice}</div>}
@@ -189,7 +205,8 @@ function Dashboard({me,students,activities,settings,onDone}:{me:Profile;students
       <label className="field"><span>전체 공지</span><textarea className="input textarea smallTextArea" value={draft.dashboard_notice} onChange={e=>setDraft({...draft,dashboard_notice:e.target.value})} placeholder="학생과 선생님에게 보여줄 공지"/></label>
       <div className="actions"><button className="btn" onClick={saveDashboard}>저장</button><button className="btn gray" onClick={()=>{setDraft(settings);setEditing(false)}}>취소</button></div>
     </div>}
-    <div className="grid"><Stat t="학생" v={`${active.length}명`}/><Stat t="평균 점수" v={`${avg}점`}/><Stat t="동메달 이상" v={`${active.filter(s=>totalFor(s.id,activities)>=40).length}명`}/><Stat t="점수 기록" v={`${activities.length}건`}/></div>
+    <div className="joyBanner"><span>☀️</span><div><b>오늘도 기쁨으로 한 걸음!</b><p>작은 실천 하나하나가 믿음의 성장이 됩니다.</p></div></div>
+    <div className="grid"><Stat t="함께하는 학생" v={`${active.length}명`}/><Stat t="평균 성장 점수" v={`${avg}점`}/><Stat t="동메달 이상" v={`${active.filter(s=>medalStatus(s,activities).bronze).length}명`}/><Stat t="칭찬 기록" v={`${activities.length}건`}/></div>
     <div className="card mt"><h3>🏆 현재 순위</h3>{active.slice().sort((a,b)=>totalFor(b.id,activities)-totalFor(a.id,activities)).slice(0,7).map((s,i)=><Row key={s.id} left={`${i+1}위 ${profileOf(s)?.full_name||"학생"}`} right={`${totalFor(s.id,activities)}점`}/>)}</div>
   </>;
 }
