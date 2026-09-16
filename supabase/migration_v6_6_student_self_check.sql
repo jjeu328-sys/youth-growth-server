@@ -44,3 +44,10 @@ create policy "staff or owner deletes bible checks" on public.bible_chapter_chec
 using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
 
 notify pgrst, 'reload schema';
+
+-- student_write_policies=6이면 학생 본인 기록 입력·수정·삭제 권한이 모두 적용된 상태입니다.
+select count(*) as student_write_policies
+from pg_policies
+where schemaname='public'
+  and ((tablename='faith_checks' and policyname in ('staff or owner inserts faith checks','staff or owner updates faith checks','staff or owner deletes faith checks'))
+    or (tablename='bible_chapter_checks' and policyname in ('staff or owner inserts bible checks','staff or owner updates bible checks','staff or owner deletes bible checks')));

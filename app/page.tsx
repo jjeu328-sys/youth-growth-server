@@ -167,7 +167,7 @@ export default function Home() {
     ? [["dashboard","🏠","대시보드"],["students","👥","학생 관리"],["faith","🙏","신앙 체크"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 관리"],["board","💬","게시판"],["ranking","🏆","전체 비교"],["settings","⚙","설정"]]
     : me.role==="teacher"
     ? [["dashboard","🏠","선생님 홈"],["students","👥","학생 관리"],["faith","🙏","신앙 체크"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
-    : [["dashboard","🌱","나의 성장"],["faith","🙏","나의 신앙"],["history","📋","나의 점수"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
+    : [["dashboard","🌱","나의 성장"],["faith","🙏","신앙 체크"],["history","📋","나의 점수"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
 
   return <div className={`app role-${me.role} ${collapsed?"navCollapsed":""}`}>
     <aside className="side">
@@ -548,7 +548,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
   const isStaff=me.role==="admin"||me.role==="teacher";
   const canEdit=isStaff||me.role==="student";
   const activeStudents=students.filter(s=>s.active);
-  const [tab,setTab]=useState<"daily"|"bible"|"overview">(isStaff?"daily":"overview");
+  const [tab,setTab]=useState<"daily"|"bible"|"overview">("daily");
   const [selectedStudent,setSelectedStudent]=useState(isStaff?activeStudents[0]?.id||"":me.id);
   const [checkDate,setCheckDate]=useState(localISODate());
   const [readDate,setReadDate]=useState(localISODate());
@@ -557,6 +557,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
   const [testament,setTestament]=useState<"old"|"new">("old");
   const [selectedBookCode,setSelectedBookCode]=useState("GEN");
   const [bookQuery,setBookQuery]=useState("");
+  const [actionNotice,setActionNotice]=useState("");
   const [startDate,setStartDate]=useState(dateDaysAgo(29));
   const [endDate,setEndDate]=useState(localISODate());
   const [daily,setDaily]=useState({bible_reading:false,prayer:false,qt:false,worship:false,note:""});
@@ -594,6 +595,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
     setSaving(false);
     if(error)return alert(error.message);
     await onDone();
+    setActionNotice("신앙 점검이 저장되었습니다.");
   }
 
   const studentBibleChecks=bibleChecks.filter(row=>row.student_id===studentId);
@@ -618,6 +620,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
       setBusyChapter("");
       if(error)return alert(error.message);
       await onDone();
+      setActionNotice(`${book.name} ${chapter}장 체크를 해제했습니다.`);
       return;
     }
     const {error}=await supabase.from("bible_chapter_checks").insert({
@@ -640,6 +643,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
     setBusyChapter("");
     if(dailyError)alert(`장별 진도는 저장했지만 일일 성경읽기 표시는 저장하지 못했습니다: ${dailyError.message}`);
     await onDone();
+    setActionNotice(`${book.name} ${chapter}장을 말씀 진도에 저장했습니다.`);
   }
 
   const safeStartDate=startDate||dateDaysAgo(29);
@@ -683,6 +687,15 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
       sub={isStaff?"작은 믿음의 습관을 기록하고 성장을 함께 응원해 주세요.":"말씀과 기도, 큐티와 예배의 걸음을 직접 기록해요."}
     />
 
+    {!isStaff&&<div className="studentFaithActions" aria-label="학생 신앙 기록 바로가기">
+      <button type="button" className={tab==="daily"?"active":""} onClick={()=>{setTab("daily");setActionNotice("")}}>
+        <span>✅</span><div><b>오늘의 신앙 점검</b><small>성경읽기·기도·큐티·예배를 체크해요</small></div>
+      </button>
+      <button type="button" className={tab==="bible"?"active":""} onClick={()=>{setTab("bible");setActionNotice("")}}>
+        <span>📖</span><div><b>읽은 말씀 체크</b><small>성경 66권에서 읽은 장을 직접 눌러요</small></div>
+      </button>
+    </div>}
+
     {isStaff&&<div className="card faithStudentPicker">
       <label className="field"><span>학생 선택</span><select className="input" value={selectedStudent} onChange={e=>setSelectedStudent(e.target.value)}>
         {activeStudents.map(student=><option key={student.id} value={student.id}>{profileOf(student)?.full_name||"이름 없음"} · {student.grade} {student.class_name}</option>)}
@@ -691,16 +704,18 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
     </div>}
 
     <div className="faithTabs" role="tablist" aria-label="신앙생활 메뉴">
-      <button className={tab==="daily"?"active":""} onClick={()=>setTab("daily")}>✅ 생활 체크</button>
-      <button className={tab==="bible"?"active":""} onClick={()=>setTab("bible")}>📚 성경 66권</button>
-      <button className={tab==="overview"?"active":""} onClick={()=>setTab("overview")}>📊 한눈에 보기</button>
+      <button className={tab==="daily"?"active":""} onClick={()=>{setTab("daily");setActionNotice("")}}>✅ 생활 체크</button>
+      <button className={tab==="bible"?"active":""} onClick={()=>{setTab("bible");setActionNotice("")}}>📚 성경 66권</button>
+      <button className={tab==="overview"?"active":""} onClick={()=>{setTab("overview");setActionNotice("")}}>📊 한눈에 보기</button>
     </div>
+
+    {actionNotice&&<div className="faithActionNotice" role="status">✓ {actionNotice}</div>}
 
     {tab==="daily"&&<section>
       <div className="card dailyCheckCard">
         <div className="sectionToolbar faithToolbar">
-          <div><h3>{isStaff?"오늘의 신앙생활 기록":"날짜별 신앙생활"}</h3><p className="muted">{faithDateText(checkDate)} · {profileOf(currentStudent)?.full_name}</p></div>
-          <label className="dateField"><span>기록 날짜</span><input className="input" type="date" max={localISODate()} value={checkDate} onChange={e=>setCheckDate(e.target.value)}/></label>
+          <div><h3>{isStaff?"오늘의 신앙생활 기록":"오늘의 신앙 점검"}</h3><p className="muted">{faithDateText(checkDate)} · {profileOf(currentStudent)?.full_name}</p></div>
+          <label className="dateField"><span>기록 날짜</span><input className="input" type="date" max={localISODate()} value={checkDate} onChange={e=>{setCheckDate(e.target.value);setActionNotice("")}}/></label>
         </div>
         <div className="habitGrid">
           {FAITH_HABITS.map(habit=><button
@@ -709,7 +724,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
             disabled={!canEdit}
             aria-pressed={daily[habit.key]}
             className={`habitCard ${daily[habit.key]?"done":""} ${!canEdit?"readOnly":""}`}
-            onClick={()=>canEdit&&setDaily({...daily,[habit.key]:!daily[habit.key]})}
+            onClick={()=>{if(canEdit){setDaily({...daily,[habit.key]:!daily[habit.key]});setActionNotice("")}}}
           >
             <span className="habitIcon">{habit.icon}</span>
             <span className="habitCopy"><b>{habit.label}</b><small>{habit.description}</small></span>
@@ -718,7 +733,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
         </div>
         {canEdit?<>
           <label className="field faithNote"><span>메모 (선택)</span><textarea className="input" rows={3} maxLength={500} value={daily.note} onChange={e=>setDaily({...daily,note:e.target.value})} placeholder="감사 제목이나 함께 기억할 내용을 적어 주세요."/></label>
-          <div className="faithSaveRow"><span className="muted">성경 66권에서 장을 체크하면 해당 날짜의 성경읽기도 자동 완료됩니다.</span><button className="btn" disabled={saving} onClick={saveDaily}>{saving?"저장 중…":"기록 저장"}</button></div>
+          <div className="faithSaveRow"><span className="muted">성경 66권에서 장을 체크하면 해당 날짜의 성경읽기도 자동 완료됩니다.</span><button className="btn" disabled={saving} onClick={saveDaily}>{saving?"저장 중…":isStaff?"기록 저장":"내 기록 저장"}</button></div>
         </>:daily.note&&<div className="faithMemo">💬 {daily.note}</div>}
       </div>
     </section>}

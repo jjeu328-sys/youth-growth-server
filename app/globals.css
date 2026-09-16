@@ -531,6 +531,14 @@ tbody tr:hover{background:#f7fbf9}
 .databaseSetupNotice h3{margin:0 0 .45rem;color:#6f5d24}
 .databaseSetupNotice p{margin:0 0 .5rem;line-height:1.65;color:#645b40}
 .databaseSetupNotice small{color:#8a7e5c;line-height:1.5}
+.studentFaithActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}
+.studentFaithActions button{min-height:88px;padding:1rem;display:flex;align-items:center;gap:.8rem;border:1px solid #dce9e4;border-radius:17px;background:#fff;color:var(--joy-ink);text-align:left;box-shadow:0 8px 20px rgba(38,80,69,.05)}
+.studentFaithActions button>span{width:2.65rem;height:2.65rem;display:grid;place-items:center;flex:0 0 auto;border-radius:13px;background:#f0f8f5;font-size:1.35rem}
+.studentFaithActions button>div{display:flex;flex-direction:column;gap:.25rem}
+.studentFaithActions button b{font-size:.88rem;color:var(--joy-deep)}
+.studentFaithActions button small{color:var(--joy-muted);font-size:.68rem;line-height:1.45}
+.studentFaithActions button.active{border-color:#77bca9;background:linear-gradient(135deg,#ecf9f4,#fff);box-shadow:inset 0 0 0 1px rgba(20,136,121,.08),0 10px 22px rgba(38,80,69,.07)}
+.faithActionNotice{margin:-.25rem 0 1rem;padding:.72rem .9rem;border:1px solid #a9ddca;border-radius:13px;background:#ebfaf3;color:#08765f;font-size:.76rem;font-weight:800}
 .faithTabs{
   display:flex;
   gap:.35rem;
@@ -680,6 +688,8 @@ tbody tr:hover{background:#f7fbf9}
   .overviewSummary{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:760px){
+  .studentFaithActions{grid-template-columns:1fr}
+  .studentFaithActions button{min-height:78px;padding:.8rem}
   .faithStudentPicker{align-items:stretch;flex-direction:column}
   .faithSelectedName{align-items:flex-start}
   .faithTabs{width:100%}

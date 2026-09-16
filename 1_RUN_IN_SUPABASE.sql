@@ -1,4 +1,4 @@
--- v6.6.1 통합 설치: 신앙생활 체크, 성경 66권 진도, 학생 자기 체크, 조회수
+-- v6.6.2 통합 설치: 신앙생활 체크, 성경 66권 진도, 학생 자기 체크, 조회수
 -- site_settings가 없는 기존 운영 DB에서도 실행되며, 이전 실행이 중단됐어도 전체를 다시 실행할 수 있습니다.
 
 create table if not exists public.faith_checks (
@@ -251,4 +251,9 @@ select
   to_regclass('public.bible_chapter_checks') as bible_chapter_checks,
   (select count(*) from public.bible_books) as bible_books_count,
   to_regclass('public.view_events') as view_events,
-  to_regclass('public.site_settings') as site_settings;
+  to_regclass('public.site_settings') as site_settings,
+  (select count(*) from pg_policies
+    where schemaname='public'
+      and ((tablename='faith_checks' and policyname in ('staff or owner inserts faith checks','staff or owner updates faith checks','staff or owner deletes faith checks'))
+        or (tablename='bible_chapter_checks' and policyname in ('staff or owner inserts bible checks','staff or owner updates bible checks','staff or owner deletes bible checks')))
+  ) as student_write_policies;
