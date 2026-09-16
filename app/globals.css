@@ -711,3 +711,19 @@ tbody tr:hover{background:#f7fbf9}
   .dateRange>span{display:none}
   .faithTabs button{font-size:.72rem;padding:.62rem .4rem}
 }
+
+/* v6.5 — 관리자 홈페이지 조회수 */
+.visitPanel{display:flex;align-items:center;justify-content:space-between;gap:1.25rem;background:linear-gradient(110deg,#f0faf6,#fffdf2)}
+.visitPanelTitle{display:flex;align-items:center;gap:.85rem}
+.visitPanelTitle>span{width:2.8rem;height:2.8rem;display:grid;place-items:center;border-radius:14px;background:#fff;color:var(--joy-deep);font-size:1.25rem;box-shadow:0 7px 18px rgba(38,80,69,.07)}
+.visitPanelTitle h3{margin:0 0 .25rem}
+.visitPanelTitle p{margin:0;color:var(--joy-muted);font-size:.72rem}
+.visitMetrics{display:flex;align-items:stretch;gap:.55rem}
+.visitMetrics>div{min-width:128px;padding:.72rem .9rem;border:1px solid #dce9e4;border-radius:14px;background:rgba(255,255,255,.82);text-align:right}
+.visitMetrics span{display:block;color:var(--joy-muted);font-size:.68rem;font-weight:750}
+.visitMetrics b{display:inline-block;margin-top:.15rem;color:var(--joy-deep);font-size:1.3rem}
+.visitMetrics small{margin-left:.18rem;color:#728481;font-size:.68rem}
+@media(max-width:760px){
+  .visitPanel{align-items:stretch;flex-direction:column}
+  .visitMetrics>div{flex:1;min-width:0}
+}

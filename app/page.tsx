@@ -11,10 +11,13 @@ type Student = {
   profiles?:Profile | Profile[];
 };
 type Activity = { id:number; student_id:string; giver_id:string; points:number; icon:string; reason:string; category:string; created_at:string };
-type Post = { id:number; author_id:string; title:string; body:string; created_at:string; profiles?:Profile; comments?:CommentRow[]; post_media?:MediaRow[] };
+type Post = { id:number; author_id:string; title:string; body:string; created_at:string; view_count:number; profiles?:Profile; comments?:CommentRow[]; post_media?:MediaRow[] };
 type CommentRow = { id:number; post_id:number; author_id:string; body:string; created_at:string; profiles?:Profile };
 type MediaRow = { id:number; post_id:number; path:string; media_type:string };
-type SiteSettings = { dashboard_title:string; dashboard_subtitle:string; dashboard_notice:string };
+type SiteSettings = {
+  dashboard_title:string; dashboard_subtitle:string; dashboard_notice:string;
+  home_view_count:number; home_today_view_count:number; home_view_date:string;
+};
 type FaithCheck = {
   id:number; student_id:string; check_date:string; bible_reading:boolean; prayer:boolean;
   qt:boolean; worship:boolean; note:string; checked_by:string|null; created_at:string; updated_at:string;
@@ -72,8 +75,36 @@ const FAITH_HABITS:{key:FaithHabitKey;icon:string;label:string;description:strin
 const DEFAULT_SETTINGS:SiteSettings = {
   dashboard_title:"비전제일교회 청소년부",
   dashboard_subtitle:"주님 안에서 함께 웃고, 믿음으로 자라요",
-  dashboard_notice:""
+  dashboard_notice:"",
+  home_view_count:0,
+  home_today_view_count:0,
+  home_view_date:""
 };
+
+function getViewKey(){
+  if(typeof window==="undefined")return "";
+  try{
+    const storageKey="joyful-youth-view-session";
+    const saved=sessionStorage.getItem(storageKey);
+    if(saved)return saved;
+    const created=crypto.randomUUID();
+    sessionStorage.setItem(storageKey,created);
+    return created;
+  }catch{return "";}
+}
+async function recordView(target:"home"|"post",postId?:number){
+  const viewKey=getViewKey();
+  if(!viewKey)return null;
+  try{
+    const response=await fetch("/api/analytics/view",{
+      method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({viewKey,target,postId})
+    });
+    if(!response.ok)return null;
+    const result=await response.json();
+    return Number(result.viewCount||0);
+  }catch{return null;}
+}
 
 export default function Home() {
   const [me,setMe]=useState<Profile|null>(null);
@@ -96,6 +127,7 @@ export default function Home() {
   },[]);
 
   async function boot(){
+    await recordView("home");
     const {data:{session}}=await supabase.auth.getSession();
     if(session) await loadMe(session.user.id);
     setLoading(false);
@@ -111,7 +143,7 @@ export default function Home() {
       supabase.from("profiles").select("id,username,full_name,role").eq("role","teacher").order("created_at"),
       supabase.from("activities").select("*").order("created_at",{ascending:false}),
       supabase.from("posts").select("*,profiles!posts_author_id_fkey(id,username,full_name,role),comments(*,profiles!comments_author_id_fkey(id,username,full_name,role)),post_media(*)").order("created_at",{ascending:false}),
-      supabase.from("site_settings").select("dashboard_title,dashboard_subtitle,dashboard_notice").eq("id",1).maybeSingle(),
+      supabase.from("site_settings").select("*").eq("id",1).maybeSingle(),
       supabase.from("faith_checks").select("*").order("check_date",{ascending:false}),
       supabase.from("bible_chapter_checks").select("*").order("created_at",{ascending:false})
     ]);
@@ -121,7 +153,7 @@ export default function Home() {
     setFaithChecks((ff||[]) as FaithCheck[]);
     setBibleChecks((bb||[]) as BibleChapterCheck[]);
     setPosts((pp||[]) as unknown as Post[]);
-    if(cfg) setSettings(cfg as SiteSettings);
+    if(cfg) setSettings({...DEFAULT_SETTINGS,...cfg} as SiteSettings);
   }
   async function logout(){await supabase.auth.signOut();setMe(null);setStudents([]);setTeachers([]);setActivities([]);setFaithChecks([]);setBibleChecks([]);setPosts([]);}
 
@@ -265,6 +297,10 @@ function Dashboard({me,students,activities,settings,onDone}:{me:Profile;students
     </div>}
     <div className="joyBanner"><span>☀️</span><div><b>오늘도 기쁨으로 한 걸음!</b><p>작은 실천 하나하나가 믿음의 성장이 됩니다.</p></div></div>
     <div className="grid"><Stat t="함께하는 학생" v={`${active.length}명`}/><Stat t="평균 성장 점수" v={`${avg}점`}/><Stat t="동메달 이상" v={`${active.filter(s=>medalStatus(s,activities).bronze).length}명`}/><Stat t="칭찬 기록" v={`${activities.length}건`}/></div>
+    {me.role==="admin"&&<div className="card visitPanel mt">
+      <div className="visitPanelTitle"><span>👀</span><div><h3>홈페이지 조회수</h3><p>같은 브라우저 세션의 반복 새로고침은 한 번만 집계합니다.</p></div></div>
+      <div className="visitMetrics"><div><span>전체 조회수</span><b>{Number(settings.home_view_count||0).toLocaleString("ko-KR")}</b><small>회</small></div><div><span>오늘 조회수</span><b>{settings.home_view_date===localISODate()?Number(settings.home_today_view_count||0).toLocaleString("ko-KR"):"0"}</b><small>회</small></div></div>
+    </div>}
     <div className="card mt"><h3>🏆 현재 순위</h3>{active.slice().sort((a,b)=>totalFor(b.id,activities)-totalFor(a.id,activities)).slice(0,7).map((s,i)=><Row key={s.id} left={`${i+1}위 ${profileOf(s)?.full_name||"학생"}`} right={`${totalFor(s.id,activities)}점`}/>)}</div>
   </>;
 }
@@ -943,7 +979,7 @@ function Ranking({students,activities,me}:{students:Student[];activities:Activit
 function Board({me,posts,selected,setSelected,writing,setWriting,onDone}:{me:Profile;posts:Post[];selected:Post|null;setSelected:(p:Post|null)=>void;writing:boolean;setWriting:(b:boolean)=>void;onDone:()=>void}){
   if(writing)return <PostWriter me={me} onCancel={()=>setWriting(false)} onDone={async()=>{setWriting(false);await onDone();}}/>;
   if(selected){const fresh=posts.find(p=>p.id===selected.id)||selected;return <PostDetail me={me} post={fresh} onBack={()=>setSelected(null)} onDone={onDone}/>;}
-  return <><div className="top"><div className="title"><h1>💬 청소년부 게시판</h1><p>서로의 글을 읽고 댓글로 대화할 수 있습니다.</p></div><button className="btn" onClick={()=>setWriting(true)}>✏️ 글쓰기</button></div><div className="boardlist">{posts.map(p=><button key={p.id} className="postcard" onClick={()=>setSelected(p)}><b>{p.title}</b><span>{p.profiles?.full_name||"사용자"} · 댓글 {p.comments?.length||0} · 첨부 {p.post_media?.length||0}</span><p>{p.body}</p></button>)}{!posts.length&&<div className="card">아직 게시글이 없습니다.</div>}</div></>;
+  return <><div className="top"><div className="title"><h1>💬 청소년부 게시판</h1><p>서로의 글을 읽고 댓글로 대화할 수 있습니다.</p></div><button className="btn" onClick={()=>setWriting(true)}>✏️ 글쓰기</button></div><div className="boardlist">{posts.map(p=><button key={p.id} className="postcard" onClick={()=>setSelected(p)}><b>{p.title}</b><span>{p.profiles?.full_name||"사용자"} · 조회 {Number(p.view_count||0).toLocaleString("ko-KR")} · 댓글 {p.comments?.length||0} · 첨부 {p.post_media?.length||0}</span><p>{p.body}</p></button>)}{!posts.length&&<div className="card">아직 게시글이 없습니다.</div>}</div></>;
 }
 function PostWriter({me,onCancel,onDone}:{me:Profile;onCancel:()=>void;onDone:()=>void}){
   const [title,setTitle]=useState(""),[body,setBody]=useState(""),[files,setFiles]=useState<File[]>([]),[busy,setBusy]=useState(false);
@@ -966,9 +1002,19 @@ function PostWriter({me,onCancel,onDone}:{me:Profile;onCancel:()=>void;onDone:()
 }
 function PostDetail({me,post,onBack,onDone}:{me:Profile;post:Post;onBack:()=>void;onDone:()=>void}){
   const [comment,setComment]=useState("");
+  const [viewCount,setViewCount]=useState(Number(post.view_count||0));
+  useEffect(()=>{setViewCount(Number(post.view_count||0))},[post.view_count]);
+  useEffect(()=>{
+    let active=true;
+    void recordView("post",post.id).then(count=>{
+      if(active&&count!==null)setViewCount(count);
+      if(count!==null)onDone();
+    });
+    return()=>{active=false};
+  },[post.id]);
   async function addComment(){if(!comment.trim())return;const {error}=await supabase.from("comments").insert({post_id:post.id,author_id:me.id,body:comment.trim()});if(error)return alert(error.message);setComment("");await onDone();}
   async function deletePost(){if(!confirm("이 글을 삭제할까요?"))return;const paths=(post.post_media||[]).map(m=>m.path);if(paths.length)await supabase.storage.from("board-media").remove(paths);const {error}=await supabase.from("posts").delete().eq("id",post.id);if(error)return alert(error.message);await onDone();onBack();}
-  return <><button className="btn gray" onClick={onBack}>← 목록</button><article className="card mt"><div className="posthead"><div><h2>{post.title}</h2><div className="muted">{post.profiles?.full_name||"사용자"} · {new Date(post.created_at).toLocaleString("ko-KR")}</div></div>{(me.role==="admin"||me.id===post.author_id)&&<button className="btn red" onClick={deletePost}>삭제</button>}</div><p className="postbody">{post.body}</p><div className="media">{(post.post_media||[]).map(m=><Media key={m.id} row={m}/>)}</div><div className="comments"><h3>댓글 {post.comments?.length||0}</h3>{post.comments?.map(c=><div className="comment" key={c.id}><b>{c.profiles?.full_name||"사용자"}</b><p>{c.body}</p></div>)}<div className="commentform"><input className="input" value={comment} onChange={e=>setComment(e.target.value)} placeholder="댓글을 입력하세요"/><button className="btn" onClick={addComment}>댓글</button></div></div></article></>;
+  return <><button className="btn gray" onClick={onBack}>← 목록</button><article className="card mt"><div className="posthead"><div><h2>{post.title}</h2><div className="muted">{post.profiles?.full_name||"사용자"} · {new Date(post.created_at).toLocaleString("ko-KR")} · 조회 {viewCount.toLocaleString("ko-KR")}</div></div>{(me.role==="admin"||me.id===post.author_id)&&<button className="btn red" onClick={deletePost}>삭제</button>}</div><p className="postbody">{post.body}</p><div className="media">{(post.post_media||[]).map(m=><Media key={m.id} row={m}/>)}</div><div className="comments"><h3>댓글 {post.comments?.length||0}</h3>{post.comments?.map(c=><div className="comment" key={c.id}><b>{c.profiles?.full_name||"사용자"}</b><p>{c.body}</p></div>)}<div className="commentform"><input className="input" value={comment} onChange={e=>setComment(e.target.value)} placeholder="댓글을 입력하세요"/><button className="btn" onClick={addComment}>댓글</button></div></div></article></>;
 }
 function Media({row}:{row:MediaRow}){
   const [url,setUrl]=useState("");
