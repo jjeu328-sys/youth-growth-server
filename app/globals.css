@@ -526,6 +526,11 @@ tbody tr:hover{background:#f7fbf9}
 .faithSelectedName{display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;white-space:nowrap}
 .faithSelectedName span{font-size:.72rem;color:var(--joy-muted)}
 .faithSelectedName b{font-size:1.05rem;color:var(--joy-deep)}
+.databaseSetupNotice{display:flex;align-items:flex-start;gap:1rem;border-color:#f0cf71;background:linear-gradient(120deg,#fff9dc,#fff)}
+.databaseSetupNotice>span{font-size:1.8rem}
+.databaseSetupNotice h3{margin:0 0 .45rem;color:#6f5d24}
+.databaseSetupNotice p{margin:0 0 .5rem;line-height:1.65;color:#645b40}
+.databaseSetupNotice small{color:#8a7e5c;line-height:1.5}
 .faithTabs{
   display:flex;
   gap:.35rem;

@@ -1,5 +1,5 @@
--- v6.4 신앙생활 체크 및 성경 66권 장별 진도
--- 기존 운영 DB의 Supabase SQL Editor에서 한 번 실행하세요.
+-- v6.6.1 통합 설치: 신앙생활 체크, 성경 66권 진도, 학생 자기 체크, 조회수
+-- site_settings가 없는 기존 운영 DB에서도 실행되며, 이전 실행이 중단됐어도 전체를 다시 실행할 수 있습니다.
 
 create table if not exists public.faith_checks (
   id bigint generated always as identity primary key,
@@ -95,17 +95,26 @@ create policy "faith checks readable by staff or owner" on public.faith_checks f
 using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
 
 drop policy if exists "staff inserts faith checks" on public.faith_checks;
-create policy "staff inserts faith checks" on public.faith_checks for insert to authenticated
-with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
+drop policy if exists "staff or owner inserts faith checks" on public.faith_checks;
+create policy "staff or owner inserts faith checks" on public.faith_checks for insert to authenticated
+with check (
+  checked_by=auth.uid() and
+  (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid()))
+);
 
 drop policy if exists "staff updates faith checks" on public.faith_checks;
-create policy "staff updates faith checks" on public.faith_checks for update to authenticated
-using (public.my_role() in ('admin','teacher'))
-with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
+drop policy if exists "staff or owner updates faith checks" on public.faith_checks;
+create policy "staff or owner updates faith checks" on public.faith_checks for update to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid())
+with check (
+  checked_by=auth.uid() and
+  (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid()))
+);
 
 drop policy if exists "staff deletes faith checks" on public.faith_checks;
-create policy "staff deletes faith checks" on public.faith_checks for delete to authenticated
-using (public.my_role() in ('admin','teacher'));
+drop policy if exists "staff or owner deletes faith checks" on public.faith_checks;
+create policy "staff or owner deletes faith checks" on public.faith_checks for delete to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
 
 drop policy if exists "bible books readable" on public.bible_books;
 create policy "bible books readable" on public.bible_books for select to authenticated using (true);
@@ -115,17 +124,26 @@ create policy "bible checks readable by staff or owner" on public.bible_chapter_
 using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
 
 drop policy if exists "staff inserts bible checks" on public.bible_chapter_checks;
-create policy "staff inserts bible checks" on public.bible_chapter_checks for insert to authenticated
-with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
+drop policy if exists "staff or owner inserts bible checks" on public.bible_chapter_checks;
+create policy "staff or owner inserts bible checks" on public.bible_chapter_checks for insert to authenticated
+with check (
+  checked_by=auth.uid() and
+  (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid()))
+);
 
 drop policy if exists "staff updates bible checks" on public.bible_chapter_checks;
-create policy "staff updates bible checks" on public.bible_chapter_checks for update to authenticated
-using (public.my_role() in ('admin','teacher'))
-with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
+drop policy if exists "staff or owner updates bible checks" on public.bible_chapter_checks;
+create policy "staff or owner updates bible checks" on public.bible_chapter_checks for update to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid())
+with check (
+  checked_by=auth.uid() and
+  (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid()))
+);
 
 drop policy if exists "staff deletes bible checks" on public.bible_chapter_checks;
-create policy "staff deletes bible checks" on public.bible_chapter_checks for delete to authenticated
-using (public.my_role() in ('admin','teacher'));
+drop policy if exists "staff or owner deletes bible checks" on public.bible_chapter_checks;
+create policy "staff or owner deletes bible checks" on public.bible_chapter_checks for delete to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
 
 create index if not exists faith_checks_student_date_idx on public.faith_checks(student_id,check_date desc);
 create index if not exists bible_checks_student_book_idx on public.bible_chapter_checks(student_id,book_code,chapter);
@@ -141,6 +159,23 @@ select
   (select count(*) from public.bible_books) as bible_books_count;
 
 -- v6.5 누적 업데이트: 홈페이지 및 게시글 조회수
+create table if not exists public.site_settings (
+  id int primary key default 1 check (id=1)
+);
+alter table public.site_settings
+  add column if not exists dashboard_title text not null default '비전제일교회 청소년부',
+  add column if not exists dashboard_subtitle text not null default '주님 안에서 함께 웃고, 믿음으로 자라요',
+  add column if not exists dashboard_notice text not null default '',
+  add column if not exists updated_by uuid references public.profiles(id) on delete set null,
+  add column if not exists updated_at timestamptz not null default now();
+insert into public.site_settings (id) values (1) on conflict (id) do nothing;
+alter table public.site_settings enable row level security;
+drop policy if exists "site settings readable" on public.site_settings;
+drop policy if exists "admin updates site settings" on public.site_settings;
+create policy "site settings readable" on public.site_settings for select to authenticated using (true);
+create policy "admin updates site settings" on public.site_settings for update to authenticated
+using (public.my_role()='admin') with check (public.my_role()='admin');
+
 alter table public.site_settings
   add column if not exists home_view_count bigint not null default 0,
   add column if not exists home_today_view_count bigint not null default 0,
@@ -215,4 +250,5 @@ select
   to_regclass('public.faith_checks') as faith_checks,
   to_regclass('public.bible_chapter_checks') as bible_chapter_checks,
   (select count(*) from public.bible_books) as bible_books_count,
-  to_regclass('public.view_events') as view_events;
+  to_regclass('public.view_events') as view_events,
+  to_regclass('public.site_settings') as site_settings;

@@ -115,6 +115,7 @@ export default function Home() {
   const [activities,setActivities]=useState<Activity[]>([]);
   const [faithChecks,setFaithChecks]=useState<FaithCheck[]>([]);
   const [bibleChecks,setBibleChecks]=useState<BibleChapterCheck[]>([]);
+  const [faithDbState,setFaithDbState]=useState<"checking"|"ready"|"missing">("checking");
   const [posts,setPosts]=useState<Post[]>([]);
   const [settings,setSettings]=useState<SiteSettings>(DEFAULT_SETTINGS);
   const [selectedPost,setSelectedPost]=useState<Post|null>(null);
@@ -138,7 +139,7 @@ export default function Home() {
   }
   async function refresh(profile=me){
     if(!profile)return;
-    const [{data:ss},{data:tt},{data:aa},{data:pp},{data:cfg},{data:ff},{data:bb}]=await Promise.all([
+    const [studentResult,teacherResult,activityResult,postResult,settingsResult,faithResult,bibleResult]=await Promise.all([
       supabase.from("students").select("id,grade,class_name,active,service,nt_read,discipleship,ot_read,evangelism,profiles!students_id_fkey(id,username,full_name,role)").order("created_at"),
       supabase.from("profiles").select("id,username,full_name,role").eq("role","teacher").order("created_at"),
       supabase.from("activities").select("*").order("created_at",{ascending:false}),
@@ -147,15 +148,17 @@ export default function Home() {
       supabase.from("faith_checks").select("*").order("check_date",{ascending:false}),
       supabase.from("bible_chapter_checks").select("*").order("created_at",{ascending:false})
     ]);
+    const {data:ss}=studentResult,{data:tt}=teacherResult,{data:aa}=activityResult,{data:pp}=postResult,{data:cfg}=settingsResult,{data:ff}=faithResult,{data:bb}=bibleResult;
     setStudents((ss||[]) as unknown as Student[]);
     setTeachers((tt||[]) as Profile[]);
     setActivities((aa||[]) as Activity[]);
     setFaithChecks((ff||[]) as FaithCheck[]);
     setBibleChecks((bb||[]) as BibleChapterCheck[]);
+    setFaithDbState(faithResult.error||bibleResult.error?"missing":"ready");
     setPosts((pp||[]) as unknown as Post[]);
     if(cfg) setSettings({...DEFAULT_SETTINGS,...cfg} as SiteSettings);
   }
-  async function logout(){await supabase.auth.signOut();setMe(null);setStudents([]);setTeachers([]);setActivities([]);setFaithChecks([]);setBibleChecks([]);setPosts([]);}
+  async function logout(){await supabase.auth.signOut();setMe(null);setStudents([]);setTeachers([]);setActivities([]);setFaithChecks([]);setBibleChecks([]);setFaithDbState("checking");setPosts([]);}
 
   if(loading)return <main className="center"><div className="card">불러오는 중…</div></main>;
   if(!me)return <Auth onLogin={loadMe}/>;
@@ -189,7 +192,7 @@ export default function Home() {
     <main className="main">
       {page==="dashboard" && <Dashboard me={me} students={students} activities={activities} settings={settings} onDone={()=>refresh()}/>}
       {page==="students" && (me.role==="admin"||me.role==="teacher") && <PeopleManagement me={me} students={students} teachers={teachers} activities={activities} onDone={()=>refresh()}/>}
-      {page==="faith" && <FaithJourney me={me} students={students} faithChecks={faithChecks} bibleChecks={bibleChecks} onDone={()=>refresh()}/>}
+      {page==="faith" && <FaithJourney me={me} students={students} faithChecks={faithChecks} bibleChecks={bibleChecks} dbState={faithDbState} onDone={()=>refresh()}/>}
       {page==="score" && (me.role==="admin"||me.role==="teacher") && <ScorePage students={students} activities={activities} me={me} onDone={()=>refresh()}/>}
       {page==="history" && <ScoreHistory me={me} students={students} teachers={teachers} activities={activities}/>}
       {page==="medals" && <Medals me={me} students={students} activities={activities}/>}
@@ -538,10 +541,12 @@ function faithDateText(value:string){
   return Number.isNaN(date.getTime())?value:new Intl.DateTimeFormat("ko-KR",{month:"long",day:"numeric",weekday:"short"}).format(date);
 }
 
-function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
-  me:Profile;students:Student[];faithChecks:FaithCheck[];bibleChecks:BibleChapterCheck[];onDone:()=>Promise<void>
+function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
+  me:Profile;students:Student[];faithChecks:FaithCheck[];bibleChecks:BibleChapterCheck[];
+  dbState:"checking"|"ready"|"missing";onDone:()=>Promise<void>
 }){
   const isStaff=me.role==="admin"||me.role==="teacher";
+  const canEdit=isStaff||me.role==="student";
   const activeStudents=students.filter(s=>s.active);
   const [tab,setTab]=useState<"daily"|"bible"|"overview">(isStaff?"daily":"overview");
   const [selectedStudent,setSelectedStudent]=useState(isStaff?activeStudents[0]?.id||"":me.id);
@@ -575,7 +580,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
   },[currentDaily,studentId,checkDate]);
 
   async function saveDaily(){
-    if(!isStaff||!studentId)return;
+    if(!canEdit||!studentId)return;
     if(!checkDate)return alert("기록 날짜를 선택해 주세요.");
     setSaving(true);
     const {error}=await supabase.from("faith_checks").upsert({
@@ -603,7 +608,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
   const visibleBooks=BIBLE_BOOKS.filter(book=>book.testament===testament&&book.name.includes(bookQuery.trim()));
 
   async function toggleChapter(book:BibleBook,chapter:number){
-    if(!isStaff||!studentId)return;
+    if(!canEdit||!studentId)return;
     if(!readDate)return alert("성경을 읽은 날짜를 선택해 주세요.");
     const key=`${book.code}:${chapter}`;
     setBusyChapter(key);
@@ -665,12 +670,17 @@ function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
     setSelectedBookCode(BIBLE_BOOKS.find(book=>book.testament===next)?.code||"GEN");
   }
 
+  if(dbState==="missing")return <>
+    <Header title="🙏 신앙생활 DB 설치 필요" sub="웹앱은 연결되었지만 Supabase에 신앙생활 테이블이 아직 없습니다."/>
+    <div className="card databaseSetupNotice"><span>🛠️</span><div><h3>Supabase SQL을 먼저 실행해 주세요</h3><p>다운로드한 ZIP의 맨 바깥에 있는 <b>1_RUN_IN_SUPABASE.sql</b> 전체를 Supabase SQL Editor에서 실행하면 해결됩니다.</p><small>반드시 Vercel의 NEXT_PUBLIC_SUPABASE_URL과 같은 Supabase 프로젝트에서 실행해야 합니다.</small></div></div>
+  </>;
+  if(dbState==="checking")return <><Header title="🙏 신앙생활" sub="데이터베이스 연결을 확인하고 있습니다."/><div className="card emptyState">확인 중…</div></>;
   if(!currentStudent)return <><Header title="🙏 신앙생활" sub="학생 등록 후 신앙생활 기록을 시작할 수 있습니다."/><div className="card emptyState">활동 중인 학생이 없습니다.</div></>;
 
   return <>
     <Header
       title={isStaff?"🙏 신앙생활 체크":"🌱 나의 신앙생활"}
-      sub={isStaff?"작은 믿음의 습관을 기록하고 성장을 함께 응원해 주세요.":"말씀과 기도, 큐티와 예배의 걸음을 차곡차곡 확인해요."}
+      sub={isStaff?"작은 믿음의 습관을 기록하고 성장을 함께 응원해 주세요.":"말씀과 기도, 큐티와 예배의 걸음을 직접 기록해요."}
     />
 
     {isStaff&&<div className="card faithStudentPicker">
@@ -696,17 +706,17 @@ function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
           {FAITH_HABITS.map(habit=><button
             type="button"
             key={habit.key}
-            disabled={!isStaff}
+            disabled={!canEdit}
             aria-pressed={daily[habit.key]}
-            className={`habitCard ${daily[habit.key]?"done":""} ${!isStaff?"readOnly":""}`}
-            onClick={()=>isStaff&&setDaily({...daily,[habit.key]:!daily[habit.key]})}
+            className={`habitCard ${daily[habit.key]?"done":""} ${!canEdit?"readOnly":""}`}
+            onClick={()=>canEdit&&setDaily({...daily,[habit.key]:!daily[habit.key]})}
           >
             <span className="habitIcon">{habit.icon}</span>
             <span className="habitCopy"><b>{habit.label}</b><small>{habit.description}</small></span>
             <span className="habitCheck">{daily[habit.key]?"✓":"○"}</span>
           </button>)}
         </div>
-        {isStaff?<>
+        {canEdit?<>
           <label className="field faithNote"><span>메모 (선택)</span><textarea className="input" rows={3} maxLength={500} value={daily.note} onChange={e=>setDaily({...daily,note:e.target.value})} placeholder="감사 제목이나 함께 기억할 내용을 적어 주세요."/></label>
           <div className="faithSaveRow"><span className="muted">성경 66권에서 장을 체크하면 해당 날짜의 성경읽기도 자동 완료됩니다.</span><button className="btn" disabled={saving} onClick={saveDaily}>{saving?"저장 중…":"기록 저장"}</button></div>
         </>:daily.note&&<div className="faithMemo">💬 {daily.note}</div>}
@@ -739,7 +749,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
       <div className="card chapterCard">
         <div className="sectionToolbar faithToolbar">
           <div><h3>📖 {selectedBook.name}</h3><p className="muted">{selectedBookChecked}장 완료 · 장 번호를 눌러 기록합니다.</p></div>
-          {isStaff&&<label className="dateField"><span>읽은 날짜</span><input className="input" type="date" max={localISODate()} value={readDate} onChange={e=>setReadDate(e.target.value)}/></label>}
+          {canEdit&&<label className="dateField"><span>읽은 날짜</span><input className="input" type="date" max={localISODate()} value={readDate} onChange={e=>setReadDate(e.target.value)}/></label>}
         </div>
         <div className="chapterGrid">
           {Array.from({length:selectedBook.chapters},(_,index)=>index+1).map(chapter=>{
@@ -747,15 +757,15 @@ function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
             const row=studentBibleChecks.find(item=>item.book_code===selectedBook.code&&item.chapter===chapter);
             return <button
               key={chapter}
-              disabled={!isStaff||busyChapter===key}
+              disabled={!canEdit||busyChapter===key}
               className={row?"done":""}
               aria-pressed={!!row}
-              title={row?`${row.read_on} 완료`:isStaff?`${chapter}장 완료로 표시`:"미완료"}
+              title={row?`${row.read_on} 완료`:canEdit?`${chapter}장 완료로 표시`:"미완료"}
               onClick={()=>toggleChapter(selectedBook,chapter)}
             >{busyChapter===key?"…":chapter}<small>{row?"✓":""}</small></button>;
           })}
         </div>
-        <div className="bibleLegend"><span><i className="legendDone"/>읽음</span><span><i/>아직</span>{!isStaff&&<b>장별 체크는 선생님이 기록합니다.</b>}</div>
+        <div className="bibleLegend"><span><i className="legendDone"/>읽음</span><span><i/>아직</span><b>{isStaff?"선생님이 대신 기록할 수 있습니다.":"읽은 장을 직접 눌러 기록하세요."}</b></div>
       </div>
     </section>}
 
@@ -1022,4 +1032,4 @@ function Media({row}:{row:MediaRow}){
   if(!url)return null;
   return row.media_type.startsWith("video/")?<video controls src={url}/>:<img src={url} alt="게시글 첨부"/>;
 }
-function Settings(){return <><Header title="⚙ 설정"/><div className="card"><h3>권한</h3><Row left="관리자" right="전체 관리"/><Row left="선생님" right="신앙 체크·성경 진도·점수·메달·게시판"/><Row left="학생" right="나의 신앙 기록·성경 진도 조회·성장·메달·게시판·순위"/></div></>}
+function Settings(){return <><Header title="⚙ 설정"/><div className="card"><h3>권한</h3><Row left="관리자" right="전체 관리"/><Row left="선생님" right="신앙 체크·성경 진도·점수·메달·게시판"/><Row left="학생" right="나의 신앙·성경 진도 직접 기록·성장·메달·게시판·순위"/></div></>}

@@ -1,4 +1,4 @@
-# v6.5 설치 순서
+# v6.6.1 설치 순서
 
 ## 1. Supabase SQL 먼저 실행
 
@@ -6,12 +6,15 @@
 
 Supabase의 `SQL Editor → New query`에 붙여넣고 `Run`을 누릅니다.
 
+기존 실행에서 `site_settings` 오류가 났어도 별도의 복구 작업 없이 이 수정본 전체를 새 쿼리에서 다시 실행하면 됩니다.
+
 실행 결과에 아래 내용이 보이면 정상입니다.
 
 - `faith_checks`
 - `bible_chapter_checks`
 - `bible_books_count`: `66`
 - `view_events`
+- `site_settings`
 
 ## 2. GitHub 파일 교체
 

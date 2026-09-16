@@ -1,6 +1,23 @@
 -- v6.5 홈페이지 및 게시글 조회수
 -- 같은 브라우저 세션에서는 홈페이지 1회, 게시글별 1회만 집계합니다.
 
+create table if not exists public.site_settings (
+  id int primary key default 1 check (id=1)
+);
+alter table public.site_settings
+  add column if not exists dashboard_title text not null default '비전제일교회 청소년부',
+  add column if not exists dashboard_subtitle text not null default '주님 안에서 함께 웃고, 믿음으로 자라요',
+  add column if not exists dashboard_notice text not null default '',
+  add column if not exists updated_by uuid references public.profiles(id) on delete set null,
+  add column if not exists updated_at timestamptz not null default now();
+insert into public.site_settings (id) values (1) on conflict (id) do nothing;
+alter table public.site_settings enable row level security;
+drop policy if exists "site settings readable" on public.site_settings;
+drop policy if exists "admin updates site settings" on public.site_settings;
+create policy "site settings readable" on public.site_settings for select to authenticated using (true);
+create policy "admin updates site settings" on public.site_settings for update to authenticated
+using (public.my_role()='admin') with check (public.my_role()='admin');
+
 alter table public.site_settings
   add column if not exists home_view_count bigint not null default 0,
   add column if not exists home_today_view_count bigint not null default 0,
@@ -91,4 +108,5 @@ notify pgrst, 'reload schema';
 
 select
   to_regclass('public.view_events') as view_events,
+  to_regclass('public.site_settings') as site_settings,
   (select home_view_count from public.site_settings where id=1) as home_view_count;

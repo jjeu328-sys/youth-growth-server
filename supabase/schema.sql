@@ -214,22 +214,24 @@ alter table public.bible_chapter_checks enable row level security;
 
 create policy "faith checks readable by staff or owner" on public.faith_checks for select to authenticated
 using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
-create policy "staff inserts faith checks" on public.faith_checks for insert to authenticated
-with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
-create policy "staff updates faith checks" on public.faith_checks for update to authenticated
-using (public.my_role() in ('admin','teacher')) with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
-create policy "staff deletes faith checks" on public.faith_checks for delete to authenticated
-using (public.my_role() in ('admin','teacher'));
+create policy "staff or owner inserts faith checks" on public.faith_checks for insert to authenticated
+with check (checked_by=auth.uid() and (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid())));
+create policy "staff or owner updates faith checks" on public.faith_checks for update to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid())
+with check (checked_by=auth.uid() and (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid())));
+create policy "staff or owner deletes faith checks" on public.faith_checks for delete to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
 
 create policy "bible books readable" on public.bible_books for select to authenticated using (true);
 create policy "bible checks readable by staff or owner" on public.bible_chapter_checks for select to authenticated
 using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
-create policy "staff inserts bible checks" on public.bible_chapter_checks for insert to authenticated
-with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
-create policy "staff updates bible checks" on public.bible_chapter_checks for update to authenticated
-using (public.my_role() in ('admin','teacher')) with check (public.my_role() in ('admin','teacher') and checked_by=auth.uid());
-create policy "staff deletes bible checks" on public.bible_chapter_checks for delete to authenticated
-using (public.my_role() in ('admin','teacher'));
+create policy "staff or owner inserts bible checks" on public.bible_chapter_checks for insert to authenticated
+with check (checked_by=auth.uid() and (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid())));
+create policy "staff or owner updates bible checks" on public.bible_chapter_checks for update to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid())
+with check (checked_by=auth.uid() and (public.my_role() in ('admin','teacher') or (public.my_role()='student' and student_id=auth.uid())));
+create policy "staff or owner deletes bible checks" on public.bible_chapter_checks for delete to authenticated
+using (public.my_role() in ('admin','teacher') or student_id=auth.uid());
 
 create index if not exists faith_checks_student_date_idx on public.faith_checks(student_id,check_date desc);
 create index if not exists bible_checks_student_book_idx on public.bible_chapter_checks(student_id,book_code,chapter);
