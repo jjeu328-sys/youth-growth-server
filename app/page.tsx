@@ -15,9 +15,60 @@ type Post = { id:number; author_id:string; title:string; body:string; created_at
 type CommentRow = { id:number; post_id:number; author_id:string; body:string; created_at:string; profiles?:Profile };
 type MediaRow = { id:number; post_id:number; path:string; media_type:string };
 type SiteSettings = { dashboard_title:string; dashboard_subtitle:string; dashboard_notice:string };
+type FaithCheck = {
+  id:number; student_id:string; check_date:string; bible_reading:boolean; prayer:boolean;
+  qt:boolean; worship:boolean; note:string; checked_by:string|null; created_at:string; updated_at:string;
+};
+type BibleChapterCheck = {
+  id:number; student_id:string; book_code:string; chapter:number; read_on:string;
+  checked_by:string|null; created_at:string;
+};
+type BibleBook = { code:string; name:string; testament:"old"|"new"; chapters:number };
+type FaithHabitKey = "bible_reading"|"prayer"|"qt"|"worship";
 
 const supabase = createClient();
 const SCORE_OPTIONS = [{p:1,i:"○"},{p:2,i:"●"},{p:4,i:"☆"},{p:8,i:"★"}];
+const BIBLE_BOOKS:BibleBook[] = [
+  {code:"GEN",name:"창세기",testament:"old",chapters:50},{code:"EXO",name:"출애굽기",testament:"old",chapters:40},
+  {code:"LEV",name:"레위기",testament:"old",chapters:27},{code:"NUM",name:"민수기",testament:"old",chapters:36},
+  {code:"DEU",name:"신명기",testament:"old",chapters:34},{code:"JOS",name:"여호수아",testament:"old",chapters:24},
+  {code:"JDG",name:"사사기",testament:"old",chapters:21},{code:"RUT",name:"룻기",testament:"old",chapters:4},
+  {code:"1SA",name:"사무엘상",testament:"old",chapters:31},{code:"2SA",name:"사무엘하",testament:"old",chapters:24},
+  {code:"1KI",name:"열왕기상",testament:"old",chapters:22},{code:"2KI",name:"열왕기하",testament:"old",chapters:25},
+  {code:"1CH",name:"역대상",testament:"old",chapters:29},{code:"2CH",name:"역대하",testament:"old",chapters:36},
+  {code:"EZR",name:"에스라",testament:"old",chapters:10},{code:"NEH",name:"느헤미야",testament:"old",chapters:13},
+  {code:"EST",name:"에스더",testament:"old",chapters:10},{code:"JOB",name:"욥기",testament:"old",chapters:42},
+  {code:"PSA",name:"시편",testament:"old",chapters:150},{code:"PRO",name:"잠언",testament:"old",chapters:31},
+  {code:"ECC",name:"전도서",testament:"old",chapters:12},{code:"SNG",name:"아가",testament:"old",chapters:8},
+  {code:"ISA",name:"이사야",testament:"old",chapters:66},{code:"JER",name:"예레미야",testament:"old",chapters:52},
+  {code:"LAM",name:"예레미야애가",testament:"old",chapters:5},{code:"EZK",name:"에스겔",testament:"old",chapters:48},
+  {code:"DAN",name:"다니엘",testament:"old",chapters:12},{code:"HOS",name:"호세아",testament:"old",chapters:14},
+  {code:"JOL",name:"요엘",testament:"old",chapters:3},{code:"AMO",name:"아모스",testament:"old",chapters:9},
+  {code:"OBA",name:"오바댜",testament:"old",chapters:1},{code:"JON",name:"요나",testament:"old",chapters:4},
+  {code:"MIC",name:"미가",testament:"old",chapters:7},{code:"NAM",name:"나훔",testament:"old",chapters:3},
+  {code:"HAB",name:"하박국",testament:"old",chapters:3},{code:"ZEP",name:"스바냐",testament:"old",chapters:3},
+  {code:"HAG",name:"학개",testament:"old",chapters:2},{code:"ZEC",name:"스가랴",testament:"old",chapters:14},
+  {code:"MAL",name:"말라기",testament:"old",chapters:4},{code:"MAT",name:"마태복음",testament:"new",chapters:28},
+  {code:"MRK",name:"마가복음",testament:"new",chapters:16},{code:"LUK",name:"누가복음",testament:"new",chapters:24},
+  {code:"JHN",name:"요한복음",testament:"new",chapters:21},{code:"ACT",name:"사도행전",testament:"new",chapters:28},
+  {code:"ROM",name:"로마서",testament:"new",chapters:16},{code:"1CO",name:"고린도전서",testament:"new",chapters:16},
+  {code:"2CO",name:"고린도후서",testament:"new",chapters:13},{code:"GAL",name:"갈라디아서",testament:"new",chapters:6},
+  {code:"EPH",name:"에베소서",testament:"new",chapters:6},{code:"PHP",name:"빌립보서",testament:"new",chapters:4},
+  {code:"COL",name:"골로새서",testament:"new",chapters:4},{code:"1TH",name:"데살로니가전서",testament:"new",chapters:5},
+  {code:"2TH",name:"데살로니가후서",testament:"new",chapters:3},{code:"1TI",name:"디모데전서",testament:"new",chapters:6},
+  {code:"2TI",name:"디모데후서",testament:"new",chapters:4},{code:"TIT",name:"디도서",testament:"new",chapters:3},
+  {code:"PHM",name:"빌레몬서",testament:"new",chapters:1},{code:"HEB",name:"히브리서",testament:"new",chapters:13},
+  {code:"JAS",name:"야고보서",testament:"new",chapters:5},{code:"1PE",name:"베드로전서",testament:"new",chapters:5},
+  {code:"2PE",name:"베드로후서",testament:"new",chapters:3},{code:"1JN",name:"요한일서",testament:"new",chapters:5},
+  {code:"2JN",name:"요한이서",testament:"new",chapters:1},{code:"3JN",name:"요한삼서",testament:"new",chapters:1},
+  {code:"JUD",name:"유다서",testament:"new",chapters:1},{code:"REV",name:"요한계시록",testament:"new",chapters:22}
+];
+const FAITH_HABITS:{key:FaithHabitKey;icon:string;label:string;description:string}[] = [
+  {key:"bible_reading",icon:"📖",label:"성경읽기",description:"하나님의 말씀을 읽었어요"},
+  {key:"prayer",icon:"🙏",label:"기도",description:"하나님께 마음을 나누었어요"},
+  {key:"qt",icon:"🌿",label:"큐티",description:"말씀을 묵상하고 적용했어요"},
+  {key:"worship",icon:"⛪",label:"예배 참석",description:"공동체 예배에 참여했어요"}
+];
 const DEFAULT_SETTINGS:SiteSettings = {
   dashboard_title:"비전제일교회 청소년부",
   dashboard_subtitle:"주님 안에서 함께 웃고, 믿음으로 자라요",
@@ -31,6 +82,8 @@ export default function Home() {
   const [students,setStudents]=useState<Student[]>([]);
   const [teachers,setTeachers]=useState<Profile[]>([]);
   const [activities,setActivities]=useState<Activity[]>([]);
+  const [faithChecks,setFaithChecks]=useState<FaithCheck[]>([]);
+  const [bibleChecks,setBibleChecks]=useState<BibleChapterCheck[]>([]);
   const [posts,setPosts]=useState<Post[]>([]);
   const [settings,setSettings]=useState<SiteSettings>(DEFAULT_SETTINGS);
   const [selectedPost,setSelectedPost]=useState<Post|null>(null);
@@ -53,29 +106,33 @@ export default function Home() {
   }
   async function refresh(profile=me){
     if(!profile)return;
-    const [{data:ss},{data:tt},{data:aa},{data:pp},{data:cfg}]=await Promise.all([
+    const [{data:ss},{data:tt},{data:aa},{data:pp},{data:cfg},{data:ff},{data:bb}]=await Promise.all([
       supabase.from("students").select("id,grade,class_name,active,service,nt_read,discipleship,ot_read,evangelism,profiles!students_id_fkey(id,username,full_name,role)").order("created_at"),
       supabase.from("profiles").select("id,username,full_name,role").eq("role","teacher").order("created_at"),
       supabase.from("activities").select("*").order("created_at",{ascending:false}),
       supabase.from("posts").select("*,profiles!posts_author_id_fkey(id,username,full_name,role),comments(*,profiles!comments_author_id_fkey(id,username,full_name,role)),post_media(*)").order("created_at",{ascending:false}),
-      supabase.from("site_settings").select("dashboard_title,dashboard_subtitle,dashboard_notice").eq("id",1).maybeSingle()
+      supabase.from("site_settings").select("dashboard_title,dashboard_subtitle,dashboard_notice").eq("id",1).maybeSingle(),
+      supabase.from("faith_checks").select("*").order("check_date",{ascending:false}),
+      supabase.from("bible_chapter_checks").select("*").order("created_at",{ascending:false})
     ]);
     setStudents((ss||[]) as unknown as Student[]);
     setTeachers((tt||[]) as Profile[]);
     setActivities((aa||[]) as Activity[]);
+    setFaithChecks((ff||[]) as FaithCheck[]);
+    setBibleChecks((bb||[]) as BibleChapterCheck[]);
     setPosts((pp||[]) as unknown as Post[]);
     if(cfg) setSettings(cfg as SiteSettings);
   }
-  async function logout(){await supabase.auth.signOut();setMe(null);setStudents([]);setTeachers([]);setActivities([]);setPosts([]);}
+  async function logout(){await supabase.auth.signOut();setMe(null);setStudents([]);setTeachers([]);setActivities([]);setFaithChecks([]);setBibleChecks([]);setPosts([]);}
 
   if(loading)return <main className="center"><div className="card">불러오는 중…</div></main>;
   if(!me)return <Auth onLogin={loadMe}/>;
 
   const nav = me.role==="admin"
-    ? [["dashboard","🏠","대시보드"],["students","👥","학생 관리"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 관리"],["board","💬","게시판"],["ranking","🏆","전체 비교"],["settings","⚙","설정"]]
+    ? [["dashboard","🏠","대시보드"],["students","👥","학생 관리"],["faith","🙏","신앙 체크"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 관리"],["board","💬","게시판"],["ranking","🏆","전체 비교"],["settings","⚙","설정"]]
     : me.role==="teacher"
-    ? [["dashboard","🏠","선생님 홈"],["students","👥","학생 관리"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
-    : [["dashboard","🌱","나의 성장"],["history","📋","나의 점수"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
+    ? [["dashboard","🏠","선생님 홈"],["students","👥","학생 관리"],["faith","🙏","신앙 체크"],["score","✦","점수 입력"],["history","📋","점수 내역"],["medals","🏅","메달 현황"],["board","💬","게시판"],["ranking","🏆","전체 비교"]]
+    : [["dashboard","🌱","나의 성장"],["faith","🙏","나의 신앙"],["history","📋","나의 점수"],["medals","🏅","메달"],["board","💬","게시판"],["ranking","🏆","전체 비교"]];
 
   return <div className={`app role-${me.role} ${collapsed?"navCollapsed":""}`}>
     <aside className="side">
@@ -100,6 +157,7 @@ export default function Home() {
     <main className="main">
       {page==="dashboard" && <Dashboard me={me} students={students} activities={activities} settings={settings} onDone={()=>refresh()}/>}
       {page==="students" && (me.role==="admin"||me.role==="teacher") && <PeopleManagement me={me} students={students} teachers={teachers} activities={activities} onDone={()=>refresh()}/>}
+      {page==="faith" && <FaithJourney me={me} students={students} faithChecks={faithChecks} bibleChecks={bibleChecks} onDone={()=>refresh()}/>}
       {page==="score" && (me.role==="admin"||me.role==="teacher") && <ScorePage students={students} activities={activities} me={me} onDone={()=>refresh()}/>}
       {page==="history" && <ScoreHistory me={me} students={students} teachers={teachers} activities={activities}/>}
       {page==="medals" && <Medals me={me} students={students} activities={activities}/>}
@@ -422,6 +480,295 @@ function PeopleManagement({me,students,teachers,activities,onDone}:{me:Profile;s
   </>;
 }
 
+function localISODate(date=new Date()){
+  const year=date.getFullYear();
+  const month=String(date.getMonth()+1).padStart(2,"0");
+  const day=String(date.getDate()).padStart(2,"0");
+  return `${year}-${month}-${day}`;
+}
+function dateDaysAgo(days:number){
+  const date=new Date();
+  date.setHours(12,0,0,0);
+  date.setDate(date.getDate()-days);
+  return localISODate(date);
+}
+function inclusiveDays(start:string,end:string){
+  const first=new Date(`${start}T12:00:00`).getTime();
+  const last=new Date(`${end}T12:00:00`).getTime();
+  return Math.max(1,Math.round((last-first)/86400000)+1);
+}
+function faithDateText(value:string){
+  const date=new Date(`${value}T12:00:00`);
+  return Number.isNaN(date.getTime())?value:new Intl.DateTimeFormat("ko-KR",{month:"long",day:"numeric",weekday:"short"}).format(date);
+}
+
+function FaithJourney({me,students,faithChecks,bibleChecks,onDone}:{
+  me:Profile;students:Student[];faithChecks:FaithCheck[];bibleChecks:BibleChapterCheck[];onDone:()=>Promise<void>
+}){
+  const isStaff=me.role==="admin"||me.role==="teacher";
+  const activeStudents=students.filter(s=>s.active);
+  const [tab,setTab]=useState<"daily"|"bible"|"overview">(isStaff?"daily":"overview");
+  const [selectedStudent,setSelectedStudent]=useState(isStaff?activeStudents[0]?.id||"":me.id);
+  const [checkDate,setCheckDate]=useState(localISODate());
+  const [readDate,setReadDate]=useState(localISODate());
+  const [saving,setSaving]=useState(false);
+  const [busyChapter,setBusyChapter]=useState("");
+  const [testament,setTestament]=useState<"old"|"new">("old");
+  const [selectedBookCode,setSelectedBookCode]=useState("GEN");
+  const [bookQuery,setBookQuery]=useState("");
+  const [startDate,setStartDate]=useState(dateDaysAgo(29));
+  const [endDate,setEndDate]=useState(localISODate());
+  const [daily,setDaily]=useState({bible_reading:false,prayer:false,qt:false,worship:false,note:""});
+
+  useEffect(()=>{
+    if(isStaff&&!activeStudents.some(s=>s.id===selectedStudent))setSelectedStudent(activeStudents[0]?.id||"");
+  },[isStaff,students,selectedStudent]);
+
+  const studentId=isStaff?selectedStudent:me.id;
+  const currentStudent=students.find(s=>s.id===studentId);
+  const currentDaily=faithChecks.find(row=>row.student_id===studentId&&row.check_date===checkDate);
+
+  useEffect(()=>{
+    setDaily({
+      bible_reading:!!currentDaily?.bible_reading,
+      prayer:!!currentDaily?.prayer,
+      qt:!!currentDaily?.qt,
+      worship:!!currentDaily?.worship,
+      note:currentDaily?.note||""
+    });
+  },[currentDaily,studentId,checkDate]);
+
+  async function saveDaily(){
+    if(!isStaff||!studentId)return;
+    if(!checkDate)return alert("기록 날짜를 선택해 주세요.");
+    setSaving(true);
+    const {error}=await supabase.from("faith_checks").upsert({
+      student_id:studentId,
+      check_date:checkDate,
+      ...daily,
+      note:daily.note.trim(),
+      checked_by:me.id,
+      updated_at:new Date().toISOString()
+    },{onConflict:"student_id,check_date"});
+    setSaving(false);
+    if(error)return alert(error.message);
+    await onDone();
+  }
+
+  const studentBibleChecks=bibleChecks.filter(row=>row.student_id===studentId);
+  const checkedKeys=new Set(studentBibleChecks.map(row=>`${row.book_code}:${row.chapter}`));
+  const totalBibleChapters=BIBLE_BOOKS.reduce((sum,book)=>sum+book.chapters,0);
+  const oldChapterTotal=BIBLE_BOOKS.filter(book=>book.testament==="old").reduce((sum,book)=>sum+book.chapters,0);
+  const newChapterTotal=totalBibleChapters-oldChapterTotal;
+  const oldChecked=studentBibleChecks.filter(row=>BIBLE_BOOKS.find(book=>book.code===row.book_code)?.testament==="old").length;
+  const newChecked=studentBibleChecks.length-oldChecked;
+  const selectedBook=BIBLE_BOOKS.find(book=>book.code===selectedBookCode)||BIBLE_BOOKS[0];
+  const selectedBookChecked=studentBibleChecks.filter(row=>row.book_code===selectedBook.code).length;
+  const visibleBooks=BIBLE_BOOKS.filter(book=>book.testament===testament&&book.name.includes(bookQuery.trim()));
+
+  async function toggleChapter(book:BibleBook,chapter:number){
+    if(!isStaff||!studentId)return;
+    if(!readDate)return alert("성경을 읽은 날짜를 선택해 주세요.");
+    const key=`${book.code}:${chapter}`;
+    setBusyChapter(key);
+    const existing=studentBibleChecks.find(row=>row.book_code===book.code&&row.chapter===chapter);
+    if(existing){
+      const {error}=await supabase.from("bible_chapter_checks").delete().eq("id",existing.id);
+      setBusyChapter("");
+      if(error)return alert(error.message);
+      await onDone();
+      return;
+    }
+    const {error}=await supabase.from("bible_chapter_checks").insert({
+      student_id:studentId,book_code:book.code,chapter,read_on:readDate,checked_by:me.id
+    });
+    if(error){setBusyChapter("");return alert(error.message);}
+
+    const sameDay=faithChecks.find(row=>row.student_id===studentId&&row.check_date===readDate);
+    const {error:dailyError}=await supabase.from("faith_checks").upsert({
+      student_id:studentId,
+      check_date:readDate,
+      bible_reading:true,
+      prayer:!!sameDay?.prayer,
+      qt:!!sameDay?.qt,
+      worship:!!sameDay?.worship,
+      note:sameDay?.note||"",
+      checked_by:me.id,
+      updated_at:new Date().toISOString()
+    },{onConflict:"student_id,check_date"});
+    setBusyChapter("");
+    if(dailyError)alert(`장별 진도는 저장했지만 일일 성경읽기 표시는 저장하지 못했습니다: ${dailyError.message}`);
+    await onDone();
+  }
+
+  const safeStartDate=startDate||dateDaysAgo(29);
+  const safeEndDate=endDate||localISODate();
+  const rangeStart=safeStartDate<=safeEndDate?safeStartDate:safeEndDate;
+  const rangeEnd=safeStartDate<=safeEndDate?safeEndDate:safeStartDate;
+  const rangeDays=inclusiveDays(rangeStart,rangeEnd);
+  const overviewStudents=isStaff?activeStudents:students.filter(s=>s.id===me.id);
+  const rangeChecks=faithChecks.filter(row=>row.check_date>=rangeStart&&row.check_date<=rangeEnd);
+  const completedTotal=rangeChecks
+    .filter(row=>overviewStudents.some(s=>s.id===row.student_id))
+    .reduce((sum,row)=>sum+FAITH_HABITS.filter(habit=>row[habit.key]).length,0);
+  const possibleTotal=overviewStudents.length*rangeDays*FAITH_HABITS.length;
+  const overallRate=possibleTotal?Math.round(completedTotal/possibleTotal*100):0;
+  const recentRows=faithChecks.filter(row=>row.student_id===studentId).slice(0,14);
+
+  function studentHabitCount(id:string,key:FaithHabitKey){
+    return rangeChecks.filter(row=>row.student_id===id&&row[key]).length;
+  }
+  function studentFaithRate(id:string){
+    const done=FAITH_HABITS.reduce((sum,habit)=>sum+studentHabitCount(id,habit.key),0);
+    return Math.round(done/(rangeDays*FAITH_HABITS.length)*100);
+  }
+  function studentBibleCount(id:string){return bibleChecks.filter(row=>row.student_id===id).length;}
+  function openTestament(next:"old"|"new"){
+    setTestament(next);
+    setBookQuery("");
+    setSelectedBookCode(BIBLE_BOOKS.find(book=>book.testament===next)?.code||"GEN");
+  }
+
+  if(!currentStudent)return <><Header title="🙏 신앙생활" sub="학생 등록 후 신앙생활 기록을 시작할 수 있습니다."/><div className="card emptyState">활동 중인 학생이 없습니다.</div></>;
+
+  return <>
+    <Header
+      title={isStaff?"🙏 신앙생활 체크":"🌱 나의 신앙생활"}
+      sub={isStaff?"작은 믿음의 습관을 기록하고 성장을 함께 응원해 주세요.":"말씀과 기도, 큐티와 예배의 걸음을 차곡차곡 확인해요."}
+    />
+
+    {isStaff&&<div className="card faithStudentPicker">
+      <label className="field"><span>학생 선택</span><select className="input" value={selectedStudent} onChange={e=>setSelectedStudent(e.target.value)}>
+        {activeStudents.map(student=><option key={student.id} value={student.id}>{profileOf(student)?.full_name||"이름 없음"} · {student.grade} {student.class_name}</option>)}
+      </select></label>
+      <div className="faithSelectedName"><span>지금 기록하는 학생</span><b>{profileOf(currentStudent)?.full_name}</b></div>
+    </div>}
+
+    <div className="faithTabs" role="tablist" aria-label="신앙생활 메뉴">
+      <button className={tab==="daily"?"active":""} onClick={()=>setTab("daily")}>✅ 생활 체크</button>
+      <button className={tab==="bible"?"active":""} onClick={()=>setTab("bible")}>📚 성경 66권</button>
+      <button className={tab==="overview"?"active":""} onClick={()=>setTab("overview")}>📊 한눈에 보기</button>
+    </div>
+
+    {tab==="daily"&&<section>
+      <div className="card dailyCheckCard">
+        <div className="sectionToolbar faithToolbar">
+          <div><h3>{isStaff?"오늘의 신앙생활 기록":"날짜별 신앙생활"}</h3><p className="muted">{faithDateText(checkDate)} · {profileOf(currentStudent)?.full_name}</p></div>
+          <label className="dateField"><span>기록 날짜</span><input className="input" type="date" max={localISODate()} value={checkDate} onChange={e=>setCheckDate(e.target.value)}/></label>
+        </div>
+        <div className="habitGrid">
+          {FAITH_HABITS.map(habit=><button
+            type="button"
+            key={habit.key}
+            disabled={!isStaff}
+            aria-pressed={daily[habit.key]}
+            className={`habitCard ${daily[habit.key]?"done":""} ${!isStaff?"readOnly":""}`}
+            onClick={()=>isStaff&&setDaily({...daily,[habit.key]:!daily[habit.key]})}
+          >
+            <span className="habitIcon">{habit.icon}</span>
+            <span className="habitCopy"><b>{habit.label}</b><small>{habit.description}</small></span>
+            <span className="habitCheck">{daily[habit.key]?"✓":"○"}</span>
+          </button>)}
+        </div>
+        {isStaff?<>
+          <label className="field faithNote"><span>메모 (선택)</span><textarea className="input" rows={3} maxLength={500} value={daily.note} onChange={e=>setDaily({...daily,note:e.target.value})} placeholder="감사 제목이나 함께 기억할 내용을 적어 주세요."/></label>
+          <div className="faithSaveRow"><span className="muted">성경 66권에서 장을 체크하면 해당 날짜의 성경읽기도 자동 완료됩니다.</span><button className="btn" disabled={saving} onClick={saveDaily}>{saving?"저장 중…":"기록 저장"}</button></div>
+        </>:daily.note&&<div className="faithMemo">💬 {daily.note}</div>}
+      </div>
+    </section>}
+
+    {tab==="bible"&&<section>
+      <div className="bibleSummaryGrid">
+        <div className="card bibleSummary"><span>성경 전체</span><b>{studentBibleChecks.length} / {totalBibleChapters}장</b><Progress value={studentBibleChecks.length} max={totalBibleChapters}/></div>
+        <div className="card bibleSummary"><span>구약</span><b>{oldChecked} / {oldChapterTotal}장</b><Progress value={oldChecked} max={oldChapterTotal}/></div>
+        <div className="card bibleSummary"><span>신약</span><b>{newChecked} / {newChapterTotal}장</b><Progress value={newChecked} max={newChapterTotal}/></div>
+      </div>
+
+      <div className="card bibleWorkspace">
+        <div className="bibleControls">
+          <div className="testamentTabs"><button className={testament==="old"?"active":""} onClick={()=>openTestament("old")}>구약 39권</button><button className={testament==="new"?"active":""} onClick={()=>openTestament("new")}>신약 27권</button></div>
+          <input className="input bibleSearch" value={bookQuery} onChange={e=>setBookQuery(e.target.value)} placeholder="성경 이름 검색" aria-label="성경 이름 검색"/>
+        </div>
+        <div className="bibleBookGrid">
+          {visibleBooks.map(book=>{
+            const count=studentBibleChecks.filter(row=>row.book_code===book.code).length;
+            return <button key={book.code} className={`${selectedBook.code===book.code?"active":""} ${count===book.chapters?"complete":""}`} onClick={()=>setSelectedBookCode(book.code)}>
+              <b>{book.name}</b><span>{count}/{book.chapters}</span>
+            </button>;
+          })}
+        </div>
+        {!visibleBooks.length&&<div className="emptyState">검색되는 성경이 없습니다.</div>}
+      </div>
+
+      <div className="card chapterCard">
+        <div className="sectionToolbar faithToolbar">
+          <div><h3>📖 {selectedBook.name}</h3><p className="muted">{selectedBookChecked}장 완료 · 장 번호를 눌러 기록합니다.</p></div>
+          {isStaff&&<label className="dateField"><span>읽은 날짜</span><input className="input" type="date" max={localISODate()} value={readDate} onChange={e=>setReadDate(e.target.value)}/></label>}
+        </div>
+        <div className="chapterGrid">
+          {Array.from({length:selectedBook.chapters},(_,index)=>index+1).map(chapter=>{
+            const key=`${selectedBook.code}:${chapter}`;
+            const row=studentBibleChecks.find(item=>item.book_code===selectedBook.code&&item.chapter===chapter);
+            return <button
+              key={chapter}
+              disabled={!isStaff||busyChapter===key}
+              className={row?"done":""}
+              aria-pressed={!!row}
+              title={row?`${row.read_on} 완료`:isStaff?`${chapter}장 완료로 표시`:"미완료"}
+              onClick={()=>toggleChapter(selectedBook,chapter)}
+            >{busyChapter===key?"…":chapter}<small>{row?"✓":""}</small></button>;
+          })}
+        </div>
+        <div className="bibleLegend"><span><i className="legendDone"/>읽음</span><span><i/>아직</span>{!isStaff&&<b>장별 체크는 선생님이 기록합니다.</b>}</div>
+      </div>
+    </section>}
+
+    {tab==="overview"&&<section>
+      <div className="card overviewFilter">
+        <div><b>조회 기간</b><p className="muted">선택한 기간의 실천 횟수와 성경 진도를 모아 봅니다.</p></div>
+        <div className="dateRange"><label><span>시작</span><input className="input" type="date" max={localISODate()} value={startDate} onChange={e=>setStartDate(e.target.value)}/></label><span>–</span><label><span>종료</span><input className="input" type="date" max={localISODate()} value={endDate} onChange={e=>setEndDate(e.target.value)}/></label></div>
+      </div>
+      <div className="overviewSummary">
+        <div className="card"><span>조회 기간</span><b>{rangeDays}일</b></div>
+        <div className="card"><span>{isStaff?"학생":"나의 기록"}</span><b>{isStaff?`${overviewStudents.length}명`:`${rangeChecks.filter(row=>row.student_id===me.id).length}일`}</b></div>
+        <div className="card"><span>완료한 실천</span><b>{completedTotal}회</b></div>
+        <div className="card"><span>전체 실천률</span><b>{overallRate}%</b></div>
+      </div>
+      <div className="card faithOverviewTable">
+        <div className="sectionToolbar"><div><h3>{isStaff?"학생별 신앙생활 현황":"나의 신앙생활 현황"}</h3><p className="muted">성경 장별 진도는 전체 1,189장 기준입니다.</p></div></div>
+        <div className="tablewrap"><table>
+          <thead><tr><th>학생</th><th>📖 성경읽기</th><th>🙏 기도</th><th>🌿 큐티</th><th>⛪ 예배</th><th>기간 실천률</th><th>66권 장별 진도</th></tr></thead>
+          <tbody>{overviewStudents.map(student=>{
+            const id=student.id;
+            const rate=studentFaithRate(id);
+            const chapterCount=studentBibleCount(id);
+            return <tr key={id} className={id===me.id?"meOverviewRow":""}>
+              <td><b>{profileOf(student)?.full_name||"이름 없음"}</b><small className="studentMeta">{student.grade} {student.class_name}</small></td>
+              {FAITH_HABITS.map(habit=><td key={habit.key}><span className="habitCount">{studentHabitCount(id,habit.key)}</span><small>/{rangeDays}일</small></td>)}
+              <td><b className="rateText">{rate}%</b><Progress value={rate} max={100}/></td>
+              <td><b>{chapterCount}장</b><small> · {Math.round(chapterCount/totalBibleChapters*100)}%</small></td>
+            </tr>;
+          })}</tbody>
+        </table></div>
+      </div>
+
+      <div className="card recentFaith">
+        <div className="sectionToolbar"><div><h3>최근 기록 · {profileOf(currentStudent)?.full_name}</h3><p className="muted">최근 저장된 14일의 체크 내용을 보여줍니다.</p></div></div>
+        {recentRows.length?<div className="recentFaithList">{recentRows.map(row=><div className="recentFaithRow" key={row.id}>
+          <time>{faithDateText(row.check_date)}</time>
+          <div>{FAITH_HABITS.map(habit=><span key={habit.key} className={row[habit.key]?"done":""}>{habit.icon} {habit.label} {row[habit.key]?"✓":"○"}</span>)}</div>
+          {row.note&&<p>{row.note}</p>}
+        </div>)}</div>:<div className="emptyState">아직 저장된 신앙생활 기록이 없습니다.</div>}
+      </div>
+    </section>}
+  </>;
+}
+
+function Progress({value,max}:{value:number;max:number}){
+  const percent=max?Math.min(100,Math.round(value/max*100)):0;
+  return <div className="progressTrack" role="progressbar" aria-valuemin={0} aria-valuemax={max} aria-valuenow={value}><span style={{width:`${percent}%`}}/></div>;
+}
+
 function ScorePage({students,activities,me,onDone}:{students:Student[];activities:Activity[];me:Profile;onDone:()=>void}){
   const active=students.filter(s=>s.active),[sid,setSid]=useState(active[0]?.id||""),[reason,setReason]=useState(""),[category,setCategory]=useState("자유점수");
   async function give(p:number,icon:string){
@@ -629,4 +976,4 @@ function Media({row}:{row:MediaRow}){
   if(!url)return null;
   return row.media_type.startsWith("video/")?<video controls src={url}/>:<img src={url} alt="게시글 첨부"/>;
 }
-function Settings(){return <><Header title="⚙ 설정"/><div className="card"><h3>권한</h3><Row left="관리자" right="전체 관리"/><Row left="선생님" right="점수·메달·게시판"/><Row left="학생" right="나의 성장·메달·게시판·순위"/></div></>}
+function Settings(){return <><Header title="⚙ 설정"/><div className="card"><h3>권한</h3><Row left="관리자" right="전체 관리"/><Row left="선생님" right="신앙 체크·성경 진도·점수·메달·게시판"/><Row left="학생" right="나의 신앙 기록·성경 진도 조회·성장·메달·게시판·순위"/></div></>}

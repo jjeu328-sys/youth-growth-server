@@ -512,3 +512,202 @@ tbody tr:hover{background:#f7fbf9}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition:none!important}
 }
+
+/* v6.4 — 신앙생활 체크 · 성경 66권 장별 진도 */
+.faithStudentPicker{
+  margin-bottom:1rem;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:1rem;
+  background:linear-gradient(120deg,#fff,#f1faf6);
+}
+.faithStudentPicker .field{width:min(480px,100%);margin:0}
+.faithSelectedName{display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;white-space:nowrap}
+.faithSelectedName span{font-size:.72rem;color:var(--joy-muted)}
+.faithSelectedName b{font-size:1.05rem;color:var(--joy-deep)}
+.faithTabs{
+  display:flex;
+  gap:.35rem;
+  width:max-content;
+  max-width:100%;
+  margin:0 0 1rem;
+  padding:.35rem;
+  border:1px solid #dce9e4;
+  border-radius:15px;
+  background:#eaf2ef;
+  overflow-x:auto;
+}
+.faithTabs button{
+  flex:0 0 auto;
+  padding:.7rem 1rem;
+  border:0;
+  border-radius:11px;
+  background:transparent;
+  color:#607575;
+  font-size:.84rem;
+  font-weight:850;
+}
+.faithTabs button.active{background:#fff;color:var(--joy-deep);box-shadow:0 5px 15px rgba(35,77,67,.08)}
+.faithToolbar{margin:0 0 1rem}
+.faithToolbar h3{margin:0 0 .28rem}
+.dateField{display:flex;align-items:center;gap:.65rem;color:#526d6c;font-size:.75rem;font-weight:800;white-space:nowrap}
+.dateField .input{width:auto;padding:.62rem .72rem}
+.habitGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.75rem}
+.habitCard{
+  min-height:134px;
+  padding:1rem;
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:.72rem;
+  border:1px solid #dfe9e5;
+  border-radius:17px;
+  background:#fbfdfc;
+  color:var(--joy-ink);
+  text-align:left;
+  transition:transform .16s ease,border-color .16s ease,background .16s ease,box-shadow .16s ease;
+}
+.habitCard:not(:disabled):hover{transform:translateY(-2px);border-color:#a9d1c4;box-shadow:0 12px 24px rgba(38,80,69,.08)}
+.habitCard.done{border-color:#83c8b4;background:linear-gradient(145deg,#eaf8f2,#f9fdfb);box-shadow:inset 0 0 0 1px rgba(20,136,121,.06)}
+.habitCard.readOnly{cursor:default;opacity:1}
+.habitIcon{font-size:1.55rem}
+.habitCopy{display:flex;flex-direction:column;gap:.22rem}
+.habitCopy b{font-size:.9rem}
+.habitCopy small{color:var(--joy-muted);font-size:.68rem;line-height:1.45}
+.habitCheck{position:absolute;right:.85rem;top:.85rem;color:#9aacaa;font-size:1.05rem;font-weight:950}
+.habitCard.done .habitCheck{width:1.65rem;height:1.65rem;display:grid;place-items:center;border-radius:50%;background:var(--joy-green);color:#fff}
+.faithNote{margin-top:1.05rem}
+.faithNote textarea{resize:vertical;min-height:84px}
+.faithSaveRow{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-top:.8rem}
+.faithMemo{margin-top:1rem;padding:.9rem 1rem;border-radius:13px;background:#f3f8f6;color:#48625f;line-height:1.6}
+
+.bibleSummaryGrid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:.8rem;margin-bottom:.9rem}
+.bibleSummary{display:flex;flex-direction:column;gap:.38rem;min-height:116px}
+.bibleSummary>span,.overviewSummary span{font-size:.75rem;color:var(--joy-muted);font-weight:750}
+.bibleSummary>b{font-size:1.18rem;color:var(--joy-deep)}
+.progressTrack{width:100%;height:7px;margin-top:auto;border-radius:999px;background:#e7efeb;overflow:hidden}
+.progressTrack>span{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--joy-green),var(--joy-sky));transition:width .2s ease}
+.bibleWorkspace{margin-bottom:.9rem}
+.bibleControls{display:flex;align-items:center;justify-content:space-between;gap:.8rem;margin-bottom:1rem}
+.testamentTabs{display:flex;gap:.3rem;padding:.25rem;border-radius:12px;background:#edf4f1}
+.testamentTabs button{padding:.6rem .9rem;border:0;border-radius:9px;background:transparent;color:#617472;font-size:.8rem;font-weight:850}
+.testamentTabs button.active{background:#fff;color:var(--joy-deep);box-shadow:0 3px 10px rgba(30,75,64,.08)}
+.bibleSearch{max-width:260px;padding:.65rem .75rem}
+.bibleBookGrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:.45rem}
+.bibleBookGrid button{
+  min-height:62px;
+  padding:.55rem .35rem;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:.2rem;
+  border:1px solid #e0eae6;
+  border-radius:12px;
+  background:#fbfdfc;
+  color:#45615f;
+}
+.bibleBookGrid button b{font-size:.75rem;word-break:keep-all}
+.bibleBookGrid button span{font-size:.64rem;color:#8a9a98}
+.bibleBookGrid button:hover,.bibleBookGrid button.active{border-color:#77bca9;background:#edf8f4;color:var(--joy-deep)}
+.bibleBookGrid button.active{box-shadow:inset 0 0 0 1px #77bca9}
+.bibleBookGrid button.complete{border-color:#efcf62;background:#fff8dc}
+.chapterCard{margin-bottom:1rem}
+.chapterGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:.42rem}
+.chapterGrid button{
+  aspect-ratio:1;
+  min-width:0;
+  position:relative;
+  border:1px solid #dfe9e5;
+  border-radius:10px;
+  background:#f8fbfa;
+  color:#617270;
+  font-size:.78rem;
+  font-weight:850;
+}
+.chapterGrid button:not(:disabled):hover{border-color:var(--joy-green);color:var(--joy-deep)}
+.chapterGrid button.done{border-color:#56b89d;background:var(--joy-green);color:#fff;box-shadow:0 5px 12px rgba(20,136,121,.16)}
+.chapterGrid button:disabled{cursor:default;opacity:1}
+.chapterGrid button small{position:absolute;right:4px;top:2px;font-size:.5rem}
+.bibleLegend{display:flex;align-items:center;gap:1rem;margin-top:1rem;color:#71827f;font-size:.7rem}
+.bibleLegend span{display:flex;align-items:center;gap:.35rem}
+.bibleLegend i{width:.75rem;height:.75rem;border:1px solid #d8e4df;border-radius:3px;background:#f8fbfa}
+.bibleLegend .legendDone{border-color:var(--joy-green);background:var(--joy-green)}
+.bibleLegend b{margin-left:auto;color:#6a7f7c}
+
+.overviewFilter{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.9rem}
+.overviewFilter p{margin:.25rem 0 0}
+.dateRange{display:flex;align-items:flex-end;gap:.5rem}
+.dateRange label{display:flex;flex-direction:column;gap:.28rem;font-size:.68rem;color:var(--joy-muted);font-weight:800}
+.dateRange .input{width:auto;padding:.58rem .68rem}
+.dateRange>span{padding-bottom:.65rem;color:#8a9a98}
+.overviewSummary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.8rem;margin-bottom:.9rem}
+.overviewSummary .card{min-height:104px;display:flex;flex-direction:column;justify-content:center;gap:.35rem}
+.overviewSummary b{font-size:1.38rem;color:var(--joy-deep)}
+.faithOverviewTable{margin-bottom:.9rem}
+.faithOverviewTable table{min-width:980px}
+.faithOverviewTable th:not(:first-child),.faithOverviewTable td:not(:first-child){text-align:center}
+.faithOverviewTable td{vertical-align:middle}
+.faithOverviewTable .progressTrack{min-width:95px;margin:.42rem auto 0}
+.studentMeta{display:block;margin-top:.2rem;color:#8a9997;font-size:.65rem;font-weight:500}
+.habitCount{font-size:1rem;font-weight:900;color:var(--joy-deep)}
+.faithOverviewTable td>small{color:#8a9997;font-size:.66rem}
+.rateText{color:var(--joy-green)}
+.meOverviewRow{background:linear-gradient(90deg,#edf9f4,#fffdf4)}
+.recentFaith{margin-bottom:1rem}
+.recentFaithList{display:grid;gap:.55rem}
+.recentFaithRow{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid #e7efeb}
+.recentFaithRow:last-child{border-bottom:0}
+.recentFaithRow time{font-size:.76rem;font-weight:850;color:#506a67}
+.recentFaithRow>div{display:flex;flex-wrap:wrap;gap:.35rem}
+.recentFaithRow span{padding:.35rem .52rem;border-radius:999px;background:#f1f4f3;color:#87928f;font-size:.67rem}
+.recentFaithRow span.done{background:#e5f7ef;color:#08765f;font-weight:800}
+.recentFaithRow p{grid-column:2;margin:.05rem 0 0;color:#667a77;font-size:.72rem;line-height:1.5}
+
+@media(max-width:1180px){
+  .habitGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .bibleBookGrid{grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@media(max-width:850px){
+  .bibleBookGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .overviewSummary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:760px){
+  .faithStudentPicker{align-items:stretch;flex-direction:column}
+  .faithSelectedName{align-items:flex-start}
+  .faithTabs{width:100%}
+  .faithTabs button{flex:1;padding:.68rem .58rem}
+  .faithToolbar{align-items:stretch;flex-direction:column}
+  .dateField{justify-content:space-between}
+  .dateField .input{flex:1;max-width:220px}
+  .faithSaveRow{align-items:stretch;flex-direction:column}
+  .faithSaveRow .btn{width:100%}
+  .bibleSummaryGrid{grid-template-columns:1fr 1fr}
+  .bibleSummaryGrid .bibleSummary:first-child{grid-column:1/-1}
+  .bibleControls{align-items:stretch;flex-direction:column}
+  .bibleSearch{max-width:none}
+  .bibleBookGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .overviewFilter{align-items:stretch;flex-direction:column}
+  .dateRange{width:100%}
+  .dateRange label{flex:1}
+  .dateRange .input{width:100%}
+  .recentFaithRow{grid-template-columns:1fr;gap:.45rem}
+  .recentFaithRow p{grid-column:1}
+}
+@media(max-width:430px){
+  .habitGrid{grid-template-columns:1fr;gap:.55rem}
+  .habitCard{min-height:92px;flex-direction:row;align-items:center;padding:.8rem}
+  .habitIcon{font-size:1.35rem}
+  .habitCheck{position:static;margin-left:auto;flex:0 0 auto}
+  .bibleSummary{min-height:100px;padding:.8rem}
+  .bibleBookGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .chapterGrid{grid-template-columns:repeat(auto-fill,minmax(39px,1fr));gap:.32rem}
+  .overviewSummary{gap:.55rem}
+  .overviewSummary .card{min-height:88px;padding:.8rem}
+  .overviewSummary b{font-size:1.18rem}
+  .dateRange{align-items:stretch;flex-direction:column}
+  .dateRange>span{display:none}
+  .faithTabs button{font-size:.72rem;padding:.62rem .4rem}
+}
