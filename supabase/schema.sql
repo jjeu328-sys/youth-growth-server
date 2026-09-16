@@ -237,6 +237,35 @@ create index if not exists faith_checks_student_date_idx on public.faith_checks(
 create index if not exists bible_checks_student_book_idx on public.bible_chapter_checks(student_id,book_code,chapter);
 create index if not exists bible_checks_read_on_idx on public.bible_chapter_checks(read_on desc);
 
+-- v6.6.3 학생 친구 비교: 선택한 하루의 네 가지 체크 여부만 공개
+-- 메모, checked_by, 성경 장별 진도는 반환하지 않으며 원본 테이블 RLS는 그대로 유지합니다.
+create or replace function public.get_daily_faith_comparison(p_check_date date)
+returns table (
+  student_id uuid,
+  check_date date,
+  bible_reading boolean,
+  prayer boolean,
+  qt boolean,
+  worship boolean
+)
+language sql
+stable
+security definer
+set search_path=pg_catalog,public
+as $$
+  select fc.student_id,fc.check_date,fc.bible_reading,fc.prayer,fc.qt,fc.worship
+  from public.faith_checks fc
+  join public.students s on s.id=fc.student_id
+  where fc.check_date=p_check_date
+    and s.active=true
+    and auth.uid() is not null
+    and exists (select 1 from public.profiles p where p.id=auth.uid())
+  order by fc.student_id;
+$$;
+
+revoke all on function public.get_daily_faith_comparison(date) from public;
+grant execute on function public.get_daily_faith_comparison(date) to authenticated;
+
 -- v6.5 홈페이지 및 게시글 조회수
 alter table public.site_settings
   add column if not exists home_view_count bigint not null default 0,

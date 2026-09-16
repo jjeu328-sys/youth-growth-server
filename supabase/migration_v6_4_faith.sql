@@ -1,4 +1,4 @@
--- v6.6.2 통합 설치: 신앙생활 체크, 성경 66권 진도, 학생 자기 체크, 조회수
+-- v6.6.3 통합 설치: 신앙생활 체크, 성경 66권 진도, 학생 하루 비교, 조회수
 -- site_settings가 없는 기존 운영 DB에서도 실행되며, 이전 실행이 중단됐어도 전체를 다시 실행할 수 있습니다.
 
 create table if not exists public.faith_checks (
@@ -149,6 +149,35 @@ create index if not exists faith_checks_student_date_idx on public.faith_checks(
 create index if not exists bible_checks_student_book_idx on public.bible_chapter_checks(student_id,book_code,chapter);
 create index if not exists bible_checks_read_on_idx on public.bible_chapter_checks(read_on desc);
 
+-- v6.6.3 학생 친구 비교: 선택한 하루의 네 가지 체크 여부만 공개
+-- 개인 메모와 성경 장별 진도는 이 함수에서 절대 반환하지 않습니다.
+create or replace function public.get_daily_faith_comparison(p_check_date date)
+returns table (
+  student_id uuid,
+  check_date date,
+  bible_reading boolean,
+  prayer boolean,
+  qt boolean,
+  worship boolean
+)
+language sql
+stable
+security definer
+set search_path=pg_catalog,public
+as $$
+  select fc.student_id,fc.check_date,fc.bible_reading,fc.prayer,fc.qt,fc.worship
+  from public.faith_checks fc
+  join public.students s on s.id=fc.student_id
+  where fc.check_date=p_check_date
+    and s.active=true
+    and auth.uid() is not null
+    and exists (select 1 from public.profiles p where p.id=auth.uid())
+  order by fc.student_id;
+$$;
+
+revoke all on function public.get_daily_faith_comparison(date) from public;
+grant execute on function public.get_daily_faith_comparison(date) to authenticated;
+
 -- Supabase REST API가 새 테이블을 즉시 인식하도록 스키마 캐시 갱신
 notify pgrst, 'reload schema';
 
@@ -252,6 +281,7 @@ select
   (select count(*) from public.bible_books) as bible_books_count,
   to_regclass('public.view_events') as view_events,
   to_regclass('public.site_settings') as site_settings,
+  to_regprocedure('public.get_daily_faith_comparison(date)') as daily_comparison_function,
   (select count(*) from pg_policies
     where schemaname='public'
       and ((tablename='faith_checks' and policyname in ('staff or owner inserts faith checks','staff or owner updates faith checks','staff or owner deletes faith checks'))

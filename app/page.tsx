@@ -26,6 +26,9 @@ type BibleChapterCheck = {
   id:number; student_id:string; book_code:string; chapter:number; read_on:string;
   checked_by:string|null; created_at:string;
 };
+type DailyFaithComparison = {
+  student_id:string; check_date:string; bible_reading:boolean; prayer:boolean; qt:boolean; worship:boolean;
+};
 type BibleBook = { code:string; name:string; testament:"old"|"new"; chapters:number };
 type FaithHabitKey = "bible_reading"|"prayer"|"qt"|"worship";
 
@@ -548,7 +551,7 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
   const isStaff=me.role==="admin"||me.role==="teacher";
   const canEdit=isStaff||me.role==="student";
   const activeStudents=students.filter(s=>s.active);
-  const [tab,setTab]=useState<"daily"|"bible"|"overview">("daily");
+  const [tab,setTab]=useState<"daily"|"bible"|"compare"|"overview">("daily");
   const [selectedStudent,setSelectedStudent]=useState(isStaff?activeStudents[0]?.id||"":me.id);
   const [checkDate,setCheckDate]=useState(localISODate());
   const [readDate,setReadDate]=useState(localISODate());
@@ -558,6 +561,10 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
   const [selectedBookCode,setSelectedBookCode]=useState("GEN");
   const [bookQuery,setBookQuery]=useState("");
   const [actionNotice,setActionNotice]=useState("");
+  const [compareDate,setCompareDate]=useState(localISODate());
+  const [comparisonRows,setComparisonRows]=useState<DailyFaithComparison[]>([]);
+  const [comparisonLoading,setComparisonLoading]=useState(false);
+  const [comparisonError,setComparisonError]=useState("");
   const [startDate,setStartDate]=useState(dateDaysAgo(29));
   const [endDate,setEndDate]=useState(localISODate());
   const [daily,setDaily]=useState({bible_reading:false,prayer:false,qt:false,worship:false,note:""});
@@ -579,6 +586,22 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
       note:currentDaily?.note||""
     });
   },[currentDaily,studentId,checkDate]);
+
+  useEffect(()=>{
+    if(isStaff||tab!=="compare"||dbState!=="ready")return;
+    let cancelled=false;
+    async function loadComparison(){
+      setComparisonLoading(true);
+      setComparisonError("");
+      const {data,error}=await supabase.rpc("get_daily_faith_comparison",{p_check_date:compareDate});
+      if(cancelled)return;
+      setComparisonLoading(false);
+      if(error){setComparisonRows([]);setComparisonError("친구 비교 기능을 사용하려면 최신 Supabase SQL을 실행해 주세요.");return;}
+      setComparisonRows((data||[]) as DailyFaithComparison[]);
+    }
+    loadComparison();
+    return ()=>{cancelled=true};
+  },[isStaff,tab,compareDate,dbState]);
 
   async function saveDaily(){
     if(!canEdit||!studentId)return;
@@ -659,6 +682,9 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
   const possibleTotal=overviewStudents.length*rangeDays*FAITH_HABITS.length;
   const overallRate=possibleTotal?Math.round(completedTotal/possibleTotal*100):0;
   const recentRows=faithChecks.filter(row=>row.student_id===studentId).slice(0,14);
+  const comparisonMap=new Map(comparisonRows.map(row=>[row.student_id,row]));
+  const comparisonParticipants=activeStudents.filter(student=>comparisonMap.has(student.id)).length;
+  const comparisonCompleted=comparisonRows.reduce((sum,row)=>sum+FAITH_HABITS.filter(habit=>row[habit.key]).length,0);
 
   function studentHabitCount(id:string,key:FaithHabitKey){
     return rangeChecks.filter(row=>row.student_id===id&&row[key]).length;
@@ -694,6 +720,9 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
       <button type="button" className={tab==="bible"?"active":""} onClick={()=>{setTab("bible");setActionNotice("")}}>
         <span>📖</span><div><b>읽은 말씀 체크</b><small>성경 66권에서 읽은 장을 직접 눌러요</small></div>
       </button>
+      <button type="button" className={tab==="compare"?"active":""} onClick={()=>{setTab("compare");setActionNotice("")}}>
+        <span>👫</span><div><b>친구와 하루 비교</b><small>서로의 하루 체크리스트만 함께 봐요</small></div>
+      </button>
     </div>}
 
     {isStaff&&<div className="card faithStudentPicker">
@@ -706,7 +735,8 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
     <div className="faithTabs" role="tablist" aria-label="신앙생활 메뉴">
       <button className={tab==="daily"?"active":""} onClick={()=>{setTab("daily");setActionNotice("")}}>✅ 생활 체크</button>
       <button className={tab==="bible"?"active":""} onClick={()=>{setTab("bible");setActionNotice("")}}>📚 성경 66권</button>
-      <button className={tab==="overview"?"active":""} onClick={()=>{setTab("overview");setActionNotice("")}}>📊 한눈에 보기</button>
+      {!isStaff&&<button className={tab==="compare"?"active":""} onClick={()=>{setTab("compare");setActionNotice("")}}>👫 친구 비교</button>}
+      <button className={tab==="overview"?"active":""} onClick={()=>{setTab("overview");setActionNotice("")}}>📊 {isStaff?"한눈에 보기":"나의 기록"}</button>
     </div>
 
     {actionNotice&&<div className="faithActionNotice" role="status">✓ {actionNotice}</div>}
@@ -782,6 +812,33 @@ function FaithJourney({me,students,faithChecks,bibleChecks,dbState,onDone}:{
         </div>
         <div className="bibleLegend"><span><i className="legendDone"/>읽음</span><span><i/>아직</span><b>{isStaff?"선생님이 대신 기록할 수 있습니다.":"읽은 장을 직접 눌러 기록하세요."}</b></div>
       </div>
+    </section>}
+
+    {tab==="compare"&&!isStaff&&<section>
+      <div className="card friendCompareHeader">
+        <div><h3>👫 친구와 하루 체크 비교</h3><p className="muted">선택한 하루의 성경읽기·기도·큐티·예배 참석 여부만 함께 볼 수 있어요.</p></div>
+        <label className="dateField"><span>비교 날짜</span><input className="input" type="date" max={localISODate()} value={compareDate} onChange={e=>setCompareDate(e.target.value)}/></label>
+      </div>
+      <div className="friendComparePrivacy"><span>🔒</span><p><b>개인 기록은 안전하게 보호됩니다.</b><small>친구의 메모, 성경 66권 장별 진도, 다른 날짜의 상세 기록은 공개되지 않습니다.</small></p></div>
+      {comparisonError?<div className="card databaseSetupNotice"><span>🛠️</span><div><h3>비교 기능 SQL 설치가 필요합니다</h3><p>{comparisonError}</p></div></div>:<>
+        <div className="friendCompareSummary">
+          <div className="card"><span>비교 날짜</span><b>{faithDateText(compareDate)}</b></div>
+          <div className="card"><span>기록한 친구</span><b>{comparisonParticipants} / {activeStudents.length}명</b></div>
+          <div className="card"><span>함께 실천한 항목</span><b>{comparisonCompleted}회</b></div>
+        </div>
+        {comparisonLoading?<div className="card emptyState">친구들의 하루 체크를 불러오는 중…</div>:<div className="friendFaithGrid">
+          {activeStudents.map(student=>{
+            const row=comparisonMap.get(student.id);
+            const completed=row?FAITH_HABITS.filter(habit=>row[habit.key]).length:0;
+            const isMe=student.id===me.id;
+            return <article key={student.id} className={`card friendFaithCard ${isMe?"mine":""}`}>
+              <div className="friendFaithIdentity"><span>{(profileOf(student)?.full_name||"?").slice(0,1)}</span><div><b>{profileOf(student)?.full_name||"이름 없음"}{isMe&&<em>나</em>}</b><small>{student.grade} {student.class_name}</small></div><strong>{completed}/4</strong></div>
+              <div className="friendHabitList">{FAITH_HABITS.map(habit=><span key={habit.key} className={row?.[habit.key]?"done":""}><i>{habit.icon}</i><b>{habit.label}</b><small>{row?.[habit.key]?"✓":"○"}</small></span>)}</div>
+              <p>{row?completed===4?"오늘의 네 가지를 모두 실천했어요!":"오늘의 체크를 기록했어요.":"아직 오늘의 체크를 기록하지 않았어요."}</p>
+            </article>;
+          })}
+        </div>}
+      </>}
     </section>}
 
     {tab==="overview"&&<section>
@@ -1047,4 +1104,4 @@ function Media({row}:{row:MediaRow}){
   if(!url)return null;
   return row.media_type.startsWith("video/")?<video controls src={url}/>:<img src={url} alt="게시글 첨부"/>;
 }
-function Settings(){return <><Header title="⚙ 설정"/><div className="card"><h3>권한</h3><Row left="관리자" right="전체 관리"/><Row left="선생님" right="신앙 체크·성경 진도·점수·메달·게시판"/><Row left="학생" right="나의 신앙·성경 진도 직접 기록·성장·메달·게시판·순위"/></div></>}
+function Settings(){return <><Header title="⚙ 설정"/><div className="card"><h3>권한</h3><Row left="관리자" right="전체 관리"/><Row left="선생님" right="신앙 체크·성경 진도·점수·메달·게시판"/><Row left="학생" right="나의 신앙·성경 진도 직접 기록·친구 하루 체크 비교·성장·메달·게시판·순위"/></div></>}

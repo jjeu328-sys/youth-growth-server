@@ -531,7 +531,7 @@ tbody tr:hover{background:#f7fbf9}
 .databaseSetupNotice h3{margin:0 0 .45rem;color:#6f5d24}
 .databaseSetupNotice p{margin:0 0 .5rem;line-height:1.65;color:#645b40}
 .databaseSetupNotice small{color:#8a7e5c;line-height:1.5}
-.studentFaithActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}
+.studentFaithActions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-bottom:1rem}
 .studentFaithActions button{min-height:88px;padding:1rem;display:flex;align-items:center;gap:.8rem;border:1px solid #dce9e4;border-radius:17px;background:#fff;color:var(--joy-ink);text-align:left;box-shadow:0 8px 20px rgba(38,80,69,.05)}
 .studentFaithActions button>span{width:2.65rem;height:2.65rem;display:grid;place-items:center;flex:0 0 auto;border-radius:13px;background:#f0f8f5;font-size:1.35rem}
 .studentFaithActions button>div{display:flex;flex-direction:column;gap:.25rem}
@@ -650,6 +650,36 @@ tbody tr:hover{background:#f7fbf9}
 .bibleLegend .legendDone{border-color:var(--joy-green);background:var(--joy-green)}
 .bibleLegend b{margin-left:auto;color:#6a7f7c}
 
+.friendCompareHeader{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.75rem;background:linear-gradient(120deg,#fff,#f2faf7)}
+.friendCompareHeader h3{margin:0 0 .3rem;color:var(--joy-deep)}
+.friendCompareHeader p{margin:0;line-height:1.55}
+.friendComparePrivacy{display:flex;align-items:center;gap:.7rem;margin-bottom:.9rem;padding:.75rem .9rem;border:1px solid #d9e8e2;border-radius:14px;background:#f7fbf9;color:#4f6a66}
+.friendComparePrivacy>span{font-size:1.2rem}
+.friendComparePrivacy p{margin:0;display:flex;flex-direction:column;gap:.15rem;font-size:.75rem}
+.friendComparePrivacy small{color:var(--joy-muted);font-size:.67rem;line-height:1.45}
+.friendCompareSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem;margin-bottom:.9rem}
+.friendCompareSummary .card{min-height:96px;display:flex;flex-direction:column;justify-content:center;gap:.35rem}
+.friendCompareSummary span{color:var(--joy-muted);font-size:.7rem;font-weight:750}
+.friendCompareSummary b{color:var(--joy-deep);font-size:1.08rem}
+.friendFaithGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.8rem;margin-bottom:1rem}
+.friendFaithCard{padding:1rem;display:flex;flex-direction:column;gap:.85rem;border-color:#dfeae6}
+.friendFaithCard.mine{border-color:#76bea9;background:linear-gradient(145deg,#eefaf6,#fff);box-shadow:inset 0 0 0 1px rgba(20,136,121,.08)}
+.friendFaithIdentity{display:flex;align-items:center;gap:.65rem}
+.friendFaithIdentity>span{width:2.4rem;height:2.4rem;display:grid;place-items:center;flex:0 0 auto;border-radius:12px;background:#eaf5f1;color:var(--joy-deep);font-weight:900}
+.friendFaithIdentity>div{min-width:0;display:flex;flex-direction:column;gap:.16rem}
+.friendFaithIdentity>div>b{display:flex;align-items:center;gap:.35rem;color:var(--joy-deep);font-size:.85rem}
+.friendFaithIdentity em{padding:.12rem .35rem;border-radius:999px;background:var(--joy-green);color:#fff;font-size:.55rem;font-style:normal}
+.friendFaithIdentity small{color:var(--joy-muted);font-size:.64rem}
+.friendFaithIdentity strong{margin-left:auto;color:var(--joy-green);font-size:1rem}
+.friendHabitList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.4rem}
+.friendHabitList>span{padding:.55rem .6rem;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.35rem;border-radius:10px;background:#f1f4f3;color:#87928f}
+.friendHabitList>span.done{background:#e7f8f1;color:#08765f}
+.friendHabitList i{font-size:.9rem;font-style:normal;filter:grayscale(.8);opacity:.68}
+.friendHabitList .done i{filter:none;opacity:1}
+.friendHabitList b{font-size:.66rem}
+.friendHabitList small{font-size:.72rem;font-weight:900}
+.friendFaithCard>p{margin:0;color:var(--joy-muted);font-size:.67rem;line-height:1.45}
+
 .overviewFilter{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:.9rem}
 .overviewFilter p{margin:.25rem 0 0}
 .dateRange{display:flex;align-items:flex-end;gap:.5rem}
@@ -682,6 +712,7 @@ tbody tr:hover{background:#f7fbf9}
 @media(max-width:1180px){
   .habitGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bibleBookGrid{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .friendFaithGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:850px){
   .bibleBookGrid{grid-template-columns:repeat(4,minmax(0,1fr))}
@@ -690,10 +721,14 @@ tbody tr:hover{background:#f7fbf9}
 @media(max-width:760px){
   .studentFaithActions{grid-template-columns:1fr}
   .studentFaithActions button{min-height:78px;padding:.8rem}
+  .friendCompareHeader{align-items:stretch;flex-direction:column}
+  .friendCompareSummary{grid-template-columns:1fr 1fr}
+  .friendCompareSummary .card:first-child{grid-column:1/-1}
+  .friendFaithGrid{grid-template-columns:1fr}
   .faithStudentPicker{align-items:stretch;flex-direction:column}
   .faithSelectedName{align-items:flex-start}
   .faithTabs{width:100%}
-  .faithTabs button{flex:1;padding:.68rem .58rem}
+  .faithTabs button{flex:1 0 86px;padding:.68rem .58rem}
   .faithToolbar{align-items:stretch;flex-direction:column}
   .dateField{justify-content:space-between}
   .dateField .input{flex:1;max-width:220px}
