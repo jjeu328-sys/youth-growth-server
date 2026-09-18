@@ -83,6 +83,7 @@ const DEFAULT_SETTINGS:SiteSettings = {
   home_today_view_count:0,
   home_view_date:""
 };
+const REMEMBERED_USERNAME_KEY="joyful-youth-remembered-username";
 
 function getViewKey(){
   if(typeof window==="undefined")return "";
@@ -209,13 +210,32 @@ export default function Home() {
 function Auth({onLogin}:{onLogin:(uid:string)=>Promise<void>}){
   const [mode,setMode]=useState<"login"|"signup">("login");
   const [msg,setMsg]=useState("");
+  const [loginUsername,setLoginUsername]=useState("");
+  const [rememberUsername,setRememberUsername]=useState(false);
+
+  useEffect(()=>{
+    try{
+      const saved=window.localStorage.getItem(REMEMBERED_USERNAME_KEY)||"";
+      if(saved){setLoginUsername(saved);setRememberUsername(true);}
+    }catch{}
+  },[]);
+
+  function changeRememberUsername(checked:boolean){
+    setRememberUsername(checked);
+    if(!checked){try{window.localStorage.removeItem(REMEMBERED_USERNAME_KEY);}catch{}}
+  }
+
   async function login(e:FormEvent<HTMLFormElement>){
     e.preventDefault();setMsg("");
-    const f=new FormData(e.currentTarget), username=String(f.get("username")||""), password=String(f.get("password")||"");
+    const f=new FormData(e.currentTarget), username=String(f.get("username")||"").trim().toLowerCase(), password=String(f.get("password")||"");
     const r=await fetch("/api/auth/resolve",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({username})});
     const j=await r.json(); if(!r.ok)return setMsg(j.error||"로그인 실패");
     const {data,error}=await supabase.auth.signInWithPassword({email:j.email,password});
     if(error||!data.user)return setMsg("아이디 또는 비밀번호를 확인하세요.");
+    try{
+      if(rememberUsername)window.localStorage.setItem(REMEMBERED_USERNAME_KEY,username);
+      else window.localStorage.removeItem(REMEMBERED_USERNAME_KEY);
+    }catch{}
     await onLogin(data.user.id);
   }
   async function signup(e:FormEvent<HTMLFormElement>){
@@ -224,6 +244,7 @@ function Auth({onLogin}:{onLogin:(uid:string)=>Promise<void>}){
     if(body.password!==body.password2)return setMsg("비밀번호가 서로 다릅니다.");
     const r=await fetch("/api/auth/signup",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});
     const j=await r.json(); if(!r.ok)return setMsg(j.error||"회원가입 실패");
+    setLoginUsername(String(body.username||"").trim().toLowerCase());
     setMsg("회원가입이 완료되었습니다. 로그인해 주세요.");setMode("login");
   }
   return <main className="auth">
@@ -236,14 +257,20 @@ function Auth({onLogin}:{onLogin:(uid:string)=>Promise<void>}){
     </section>
     <div className="authbox"><div className="logo">✦</div><p className="loginEyebrow">WELCOME BACK</p><h2>반가워요!</h2><p className="sub">오늘도 기쁨으로 함께 성장해요.</p>
     <div className="tabs"><button type="button" className={mode==="login"?"active":""} onClick={()=>setMode("login")}>로그인</button><button type="button" className={mode==="signup"?"active":""} onClick={()=>setMode("signup")}>회원가입</button></div>
-    {mode==="login"?<form onSubmit={login}><Field label="아이디" name="username"/><Field label="비밀번호" name="password" type="password"/><button className="btn full">로그인</button></form>
-    :<form onSubmit={signup}><Field label="이름" name="fullName"/><div className="formgrid"><Field label="학년" name="grade"/><Field label="반" name="className"/></div><Field label="아이디" name="username"/><Field label="비밀번호" name="password" type="password"/><Field label="비밀번호 확인" name="password2" type="password"/><button className="btn full">학생 회원가입</button></form>}
+    {mode==="login"?<form onSubmit={login} autoComplete="on">
+      <label className="field"><span>아이디</span><input className="input" name="username" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} value={loginUsername} onChange={e=>setLoginUsername(e.target.value)} required/></label>
+      <label className="field"><span>비밀번호</span><input className="input" name="password" type="password" autoComplete="current-password" required/></label>
+      <div className="loginOptions"><label className="rememberLogin"><input type="checkbox" checked={rememberUsername} onChange={e=>changeRememberUsername(e.target.checked)}/><span>아이디 기억하기</span></label><small>비밀번호는 브라우저의 비밀번호 저장 기능을 사용합니다.</small></div>
+      <button className="btn full">로그인</button>
+      <div className="credentialSafety"><span>🔒</span><p><b>안전한 로그인 정보 저장</b><small>앱에는 비밀번호를 저장하지 않습니다. 로그인 후 브라우저가 묻는 비밀번호 저장 여부를 선택해 주세요.</small></p></div>
+    </form>
+    :<form onSubmit={signup} autoComplete="on"><Field label="이름" name="fullName" autoComplete="name"/><div className="formgrid"><Field label="학년" name="grade"/><Field label="반" name="className"/></div><Field label="아이디" name="username" autoComplete="username"/><Field label="비밀번호" name="password" type="password" autoComplete="new-password"/><Field label="비밀번호 확인" name="password2" type="password" autoComplete="new-password"/><button className="btn full">학생 회원가입</button></form>}
     {msg&&<div className="notice">{msg}</div>}
     <p className="authHelp">로그인에 어려움이 있다면 담당 선생님께 알려주세요.</p>
   </div></main>
 }
-function Field({label,name,type="text",defaultValue=""}:{label:string;name:string;type?:string;defaultValue?:string}) {
-  return <label className="field"><span>{label}</span><input className="input" name={name} type={type} defaultValue={defaultValue} required={["username","password","fullName"].includes(name)}/></label>
+function Field({label,name,type="text",defaultValue="",autoComplete}:{label:string;name:string;type?:string;defaultValue?:string;autoComplete?:string}) {
+  return <label className="field"><span>{label}</span><input className="input" name={name} type={type} defaultValue={defaultValue} autoComplete={autoComplete} autoCapitalize={name==="username"?"none":undefined} spellCheck={name==="username"?false:undefined} required={["username","password","fullName"].includes(name)}/></label>
 }
 
 function totalFor(id:string, acts:Activity[]){return acts.filter(a=>a.student_id===id).reduce((n,a)=>n+a.points,0)}
